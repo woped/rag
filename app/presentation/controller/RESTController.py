@@ -1,16 +1,35 @@
 from flask import Blueprint, request, jsonify
-from app.core.services.DatabaseService import DatabaseService
-from app.infrastructure.db.DatabaseAdapter import DatabaseAdapter
 from app.core.dtos.DocumentDTO import DocumentDTO
 from app.infrastructure.db.PDFLoader import PDFLoader
+from app.core.services.DatabaseService import DatabaseService
+import app.core.ApplicationService  
 import os
 
 rest_bp = Blueprint("rest", __name__)
-db_service = DatabaseService(DatabaseAdapter())
+
+# ➤ Enrich prompt with similarity search and RAG prompt template (POST)
+@rest_bp.route("/rag/enrich", methods=["POST"])
+def enrich_prompt():
+    """
+    Enriches the given prompt using similarity search and the RAG prompt template.
+    Expects JSON: { "prompt": "..." }
+    Returns: { "enriched_prompt": "..." }
+    """
+    data = request.get_json()
+    prompt = data.get("prompt", "")
+    try:
+        enriched = app.core.ApplicationService.application_service.answer_with_rag(prompt)
+        return jsonify({"enriched_prompt": enriched}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 # ➤ Add documents (POST)
 @rest_bp.route("/rag", methods=["POST"])
 def add_docs():
+    """
+    Adds a list of documents to the database.
+    Expects a JSON list of documents.
+    """
     try:
         data = request.get_json()
         if not isinstance(data, list):
@@ -24,11 +43,11 @@ def add_docs():
             DocumentDTO(id=doc.get("id"), text=doc["text"], metadata=doc.get("metadata"))
             for doc in data
         ]
+        db_service = app.core.services.DatabaseService.db_service
         db_service.add_docs(document_dtos)
         return jsonify({"status": "ok"}), 201
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
 
 # ➤ Update a document by ID (PUT)
 @rest_bp.route("/rag/<doc_id>", methods=["PUT"])
@@ -42,6 +61,7 @@ def update_doc(doc_id):
 
     try:
         document = DocumentDTO(id=doc_id, text=text, metadata=metadata)
+        db_service = app.core.services.DatabaseService.db_service
         db_service.update_doc(document)
         return jsonify({"status": "updated"}), 200
     except Exception as e:
@@ -51,12 +71,13 @@ def update_doc(doc_id):
 @rest_bp.route("/rag/<doc_id>", methods=["GET"])
 def get_doc_by_id(doc_id):
     try:
+        db_service = app.core.services.DatabaseService.db_service
         result = db_service.get_doc_by_id(doc_id)
         return jsonify(result), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# ➤ Similarity search (GET) -> noch nicht funktional
+# ➤ Similarity search (GET)
 @rest_bp.route('/rag/search', methods=['GET'])
 def search_docs():
     query = request.args.get("query")
@@ -64,9 +85,20 @@ def search_docs():
         return jsonify({"error": "No query provided"}), 400
 
     try:
-        k = int(request.args.get("k", 3))
+        k = int(request.args.get("k", 3))  # Default to 10 results if not specified
+        db_service = app.core.services.DatabaseService.db_service
         results = db_service.search_docs(query, k)
-        return jsonify({"results": results}), 200
+        # results ist jetzt eine Liste von (DocumentDTO, distance)
+        response = [
+            {
+                "id": dto.id,
+                "text": dto.text,
+                "metadata": dto.metadata,
+                "distance": distance
+            }
+            for dto, distance in results
+        ]
+        return jsonify({"results": response}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -74,15 +106,17 @@ def search_docs():
 @rest_bp.route("/rag/<doc_id>", methods=["DELETE"])
 def delete_doc(doc_id):
     try:
+        db_service = app.core.services.DatabaseService.db_service
         db_service.delete_doc(doc_id)
         return jsonify({"status": "deleted"}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     
-# ➤ Clear the database
+# ➤ Clear the database (POST)
 @rest_bp.route("/rag/clear", methods=["POST"])
 def clear_collection():
     try:
+        db_service = app.core.services.DatabaseService.db_service
         db_service.clear()
         return jsonify({"status": "cleared"}), 200
     except Exception as e:
@@ -90,8 +124,7 @@ def clear_collection():
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
-
-
+# ➤ Upload PDF and add to database (POST)
 @rest_bp.route("/rag/upload_pdf", methods=["POST"])
 def upload_pdf():
     file = request.files.get("file")
@@ -103,6 +136,7 @@ def upload_pdf():
         file.save(tmp.name)
 
     try:
+        db_service = app.core.services.DatabaseService.db_service
         collection = db_service.adapter.collection
         loader = PDFLoader(collection)
         docs = loader.load_and_split(tmp.name)
@@ -112,11 +146,13 @@ def upload_pdf():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+# ➤ Debug: Dump all document IDs (GET)
 @rest_bp.route("/rag/debug_dump", methods=["GET"])
 def debug_dump():
     try:
-        adapter = db_service.db  # Zugriff auf den Adapter (DatabasePort)
-        client = adapter.client  # Zugriff auf LangchainClient
+        db_service = app.core.services.DatabaseService.db_service
+        adapter = db_service.db  # Access the adapter (DatabasePort)
+        client = adapter.client  # Access the LangchainClient
         ids = client.collection.get()["ids"]
         return jsonify({"count": len(ids), "ids": ids}), 200
     except Exception as e:

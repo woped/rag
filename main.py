@@ -1,56 +1,55 @@
+# Standard library imports
+import os
+import glob
+
+# Third-party imports
 from flask import Flask
-from app.presentation.controller.RESTController import rest_bp
-import glob, os
 from dotenv import load_dotenv
-from app.infrastructure.db.PDFLoader import PDFLoader
 from chromadb import PersistentClient
-from app.presentation.controller.RESTController import rest_bp, db_service
-from app.core.dtos.DocumentDTO import DocumentDTO
+from langchain import hub
 
+# Project-specific imports
+from app.presentation.controller.RESTController import rest_bp
+from app.infrastructure.db.PDFLoader import PDFLoader
+from app.core.services.RAGService import RAGService
+from app.core.ApplicationService import ApplicationService
+from app.core.services.DatabaseService import DatabaseService
+from app.infrastructure.db.DatabaseAdapter import DatabaseAdapter
+import app.core.services.RAGService 
+import app.core.services.DatabaseService
 
+# Initialize ChromaDB and PDF loader
+client = PersistentClient(path="chroma")
+collection = client.get_or_create_collection("rag_collection")
+pdf_loader = PDFLoader(collection)
+db_service = DatabaseService(DatabaseAdapter())
 
-client      = PersistentClient(path="chroma")
-collection   = client.get_or_create_collection("rag_collection")
-loader        = PDFLoader(collection)
-
-
+# Load environment variables from .env file
 load_dotenv()
+
+# Load RAG prompt from LangChain Hub
+rag_prompt = hub.pull("rlm/rag-prompt")
+
+# Initialize RAGService (llm=None for prompt enrichment only)
+rag_service = RAGService(db_service, None, rag_prompt)
+application_service = ApplicationService(pdf_loader, db_service, rag_service, collection)
+
+# Provide singletons for use in RESTController and other modules
+app.core.services.RAGService.rag_service = rag_service
+app.core.ApplicationService.application_service = application_service
+app.core.services.DatabaseService.db_service = db_service
 
 def create_app():
     app = Flask(__name__)
     app.register_blueprint(rest_bp)
     return app
 
-def delete_old_docs_by_prefix(collection, prefix):
-    results = collection.get()
-    all_ids = results.get("ids", [])
-    ids_to_delete = [id_ for id_ in all_ids if id_.startswith(prefix)]
-    if ids_to_delete:
-        collection.delete(ids=ids_to_delete)
-        print(f"→ Gelöscht: {len(ids_to_delete)} alte Chunks mit Prefix '{prefix}'")
-    else:
-        print(f"→ Keine alten Chunks mit Prefix '{prefix}' gefunden")
-
-
 if __name__ == "__main__":
     for pdf_path in glob.glob("PDF/*.pdf"):
-        print("--> Lade:", pdf_path)
-        chunks = loader.load_and_split(pdf_path)
-        texts = [c.page_content for c in chunks]
-        metadatas = [c.metadata for c in chunks]
+        print("--> Loading:", pdf_path)
         filename_prefix = os.path.basename(pdf_path).replace(".pdf", "")
-        ids = [f"{filename_prefix}_{i}" for i in range(len(texts))]
+        application_service.upload_and_index_pdf(pdf_path, filename_prefix)
 
-        # Alte Dokumente mit diesem Prefix löschen, ansonsten findet nie eine Aktualisierung der Datenbank bei veränderter Chunk Size in PDFLoader statt.
-        delete_old_docs_by_prefix(collection, filename_prefix)
-
-        # Neue Dokumente hinzufügen
-        db_service.db.add_docs([
-            DocumentDTO(id=i, text=t, metadata=m)
-            for i, t, m in zip(ids, texts, metadatas)
-        ])
-
-    
     port = int(os.getenv("PORT", 5000))
     app = create_app()
     app.run(debug=True, use_reloader=False, port=port)
