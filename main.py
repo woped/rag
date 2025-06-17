@@ -28,7 +28,14 @@ db_service = DatabaseService(DatabaseAdapter())
 load_dotenv()
 
 # Load RAG prompt from LangChain Hub
-rag_prompt = hub.pull("rlm/rag-prompt")
+from langchain.prompts import ChatPromptTemplate
+
+rag_prompt = ChatPromptTemplate.from_messages([
+    (
+        "system",
+        "{prompt}\n\nKontext:\n{context}\n\nAntwort:"
+    )
+])
 
 # Initialize RAGService (llm=None for prompt enrichment only)
 rag_service = RAGService(db_service, None, rag_prompt)

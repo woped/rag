@@ -66,7 +66,7 @@ class LangchainClient:
         docs = []
         for doc, distance in results:
             print(f"Distance: {distance}, ID: {getattr(doc, 'id', None)}")
-            if distance <= threshold:
+            if distance < threshold:
                 id_ = getattr(doc, 'id', None) or doc.metadata.get('id', None) or "unknown"
                 text = getattr(doc, 'page_content', None) or getattr(doc, 'text', None) or doc.metadata.get('text', None) or ""
                 metadata = getattr(doc, 'metadata', None) or {}

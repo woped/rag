@@ -29,6 +29,6 @@ class ApplicationService:
             for i, t, m in zip(ids, texts, metadatas)
         ])
 
-    def answer_with_rag(self, question: str, k: int) -> str:
-        """Returns an enriched prompt or a full RAG answer."""
-        return self.rag_service.enrich_prompt(question, k)
+    def answer_with_rag(self, state) -> str:
+        """Returns an enriched prompt or a full RAG answer using State-DTO."""
+        return self.rag_service.enrich_prompt(state)

@@ -9,17 +9,18 @@ class RAGService:
         self.llm = llm  # Not required for enrich_prompt, only for full RAG pipeline
         self.prompt = prompt
 
-    def enrich_prompt(self, question: str, k: int) -> str:
+    def enrich_prompt(self, state) -> str:
         """
         Enriches the given question with context from similarity search and the RAG prompt template.
-        This is the only method required for the P2T integration (no LLM call).
-        Uses DocumentDTO objects and extracts context from doc.text.
+        Verwendet State-DTO mit prompt, question, context.
         """
-        results = self.db.search_docs(question, k)
-        docs = [dto for dto, _ in results]
-        context_text = "\n\n".join(doc.text for doc in docs)
-        messages = self.prompt.format_messages(question=question, context=context_text)
-        return messages[0].content if messages else question
+        context_text = "\n\n".join(doc.text for doc in state["context"])
+        messages = self.prompt.format_messages(
+            prompt=state["prompt"],
+            question=state["question"],
+            context=context_text
+        )
+        return messages[0].content if messages else state["question"]
 
     # --- The following methods are not required for the P2T integration ---
     # --- They are only kept for standalone/full RAG pipeline tests ---
