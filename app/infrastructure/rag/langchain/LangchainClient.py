@@ -2,6 +2,7 @@ from langchain_chroma import Chroma
 from langchain_huggingface import HuggingFaceEmbeddings
 from chromadb import PersistentClient
 from langchain_core.documents import Document
+from app.core.dtos.DocumentDTO import DocumentDTO
 
 class LangchainClient:
     """
@@ -13,13 +14,11 @@ class LangchainClient:
     - Stores all data persistently in the given directory
 
     """
-
-    # Änderung vom Collection Namen: Es muss ein einheitlicher Name verwendet werden (vorher stand hier als Name "rag_collection_langchain")
     def __init__(self, persist_directory="chroma"):
         self.persist_directory = persist_directory
 
         # LangChain-compatible VectorStore using HuggingFace embeddings
-        self.embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+        self.embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
         self.vectorstore = Chroma(
             collection_name="rag_collection",
             embedding_function=self.embeddings,
@@ -59,22 +58,20 @@ class LangchainClient:
             "metadata": result["metadatas"][0]
         }
 
-    def search_docs(self, query, k=10, threshold=0.9):
+    def search_docs(self, query, k, threshold=25):
         # Perform semantic search using LangChain's similarity_search_with_score
         # This returns (document, distance) tuples where lower distance means higher similarity
         results = self.vectorstore.similarity_search_with_score(query, k=k)
 
-        # Filter documents based on similarity threshold (lower distance = better match)
-        filtered = [
-            {
-                "content": doc.page_content,
-                "score": score  # Note: this is a distance, not a similarity score
-            }
-            for doc, score in results
-            if score <= threshold
-        ]
-
-        return filtered
+        docs = []
+        for doc, distance in results:
+            print(f"Distance: {distance}, ID: {getattr(doc, 'id', None)}")
+            if distance <= threshold:
+                id_ = getattr(doc, 'id', None) or doc.metadata.get('id', None) or "unknown"
+                text = getattr(doc, 'page_content', None) or getattr(doc, 'text', None) or doc.metadata.get('text', None) or ""
+                metadata = getattr(doc, 'metadata', None) or {}
+                docs.append((DocumentDTO(id=id_, text=text, metadata=metadata), distance))
+        return docs
 
     def update_doc(self, id, text, metadata=None):
         #Update a document by deleting and re-adding it with the same ID.

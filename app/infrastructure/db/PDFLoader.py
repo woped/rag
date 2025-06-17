@@ -2,15 +2,23 @@ from chromadb import PersistentClient
 import os
 from langchain_community.document_loaders import PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain.text_splitter import NLTKTextSplitter
 from langchain_huggingface import HuggingFaceEmbeddings
+import nltk
 
 class PDFLoader:
     def __init__(self, collection):
+        for resource in ['punkt', 'punkt_tab']:
+            try:
+                nltk.data.find(f'tokenizers/{resource}')
+            except LookupError:
+                nltk.download(resource)
+
+        # Adjust the chunk size as needed. The higher the chunk size, the more entries in Chroma.
+        # If the chunk size is set too high, there may be issues with similarity search.
+        # If the search uses only a few terms and the entries contain large text blocks, the threshold (e.g., 0.9) may not be met and no output is returned.
         self.collection = collection
-        #Hier die Chunk Size je nachdem anpassen. Je höher die Chunk Size desto mehr Einträge in Chroma. 
-        #Wenn die Chunk Size zu hoch gesetzt wird, gibt es Probleme bei der Similarity Search. 
-        # Wenn in der Suche nur wenige Begriffe verwendet werden und die Einträge große Textblöcke enthalten, kann der vorliegende Treshold 0.9 nicht eingehalten werden und es gibt keine Ausgabe. 
-        self.splitter = RecursiveCharacterTextSplitter(chunk_size=100, chunk_overlap=50,separators=["\n\n", "\n", ".", " ", ""])
+        self.splitter = NLTKTextSplitter(chunk_size=150, chunk_overlap=50)
 
     def load_and_split(self, file_path):
         loader = PyPDFLoader(file_path)
@@ -24,9 +32,9 @@ class PDFLoader:
         try:
             self.collection.delete(ids=ids)
         except Exception as e:
-            print(f"Warnung beim Löschen vorhandener IDs: {e}")
+            print(f"Warning when deleting existing IDs: {e}")
         
         self.collection.add(documents=texts, metadatas=metadatas, ids=ids)
-        
+
 
 
