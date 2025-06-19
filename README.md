@@ -62,6 +62,8 @@ python main.py
 `docker run -p 5050:5000 rag-api`
 
 5. **Run with Logging**<br>
+The default logging is set to `warning` and will be active automatically when starting the application.<br>
+
    **Flask**<br>
    `python main.py --loglevel <level>`<br>
 
