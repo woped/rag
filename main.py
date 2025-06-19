@@ -2,6 +2,10 @@
 import os
 import glob
 
+# imports for logging
+import argparse
+import logging
+
 # Third-party imports
 from flask import Flask
 from dotenv import load_dotenv
@@ -45,11 +49,41 @@ def create_app():
     return app
 
 if __name__ == "__main__":
+    if __name__ == "__main__":
+    # ---------------------------------------
+    # Argumentparser für Log-Level einrichten
+    # ---------------------------------------
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--loglevel",
+        default="warning",
+        help="Set the logging level (debug, info, warning, error, critical)"
+    )
+    args = parser.parse_args()
+
+    numeric_level = getattr(logging, args.loglevel.upper(), None)
+    if not isinstance(numeric_level, int):
+        raise ValueError(f"Ungültiger loglevel: {args.loglevel}")
+
+    logging.basicConfig(
+        level=numeric_level,
+        format='%(asctime)s - %(levelname)s - %(message)s'
+    )
+    
+    # Beispiel-Logeintrag (optional)
+    logging.info("Logging erfolgreich initialisiert")
+
+    # ---------------------------------------
+    # PDF-Dateien laden
+    # ---------------------------------------
     for pdf_path in glob.glob("PDF/*.pdf"):
-        print("--> Loading:", pdf_path)
+        logging.info(f"--> Loading: {pdf_path}")
         filename_prefix = os.path.basename(pdf_path).replace(".pdf", "")
         application_service.upload_and_index_pdf(pdf_path, filename_prefix)
 
+    # ---------------------------------------
+    # Flask-App starten
+    # ---------------------------------------
     port = int(os.getenv("PORT", 5000))
     app = create_app()
     app.run(debug=True, use_reloader=False, port=port)

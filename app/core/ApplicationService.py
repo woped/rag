@@ -1,4 +1,5 @@
 from app.core.dtos.DocumentDTO import DocumentDTO
+import logging
 
 class ApplicationService:
     def __init__(self, pdf_loader, db_service, rag_service, collection):
@@ -13,9 +14,9 @@ class ApplicationService:
         ids_to_delete = [id_ for id_ in all_ids if id_.startswith(prefix)]
         if ids_to_delete:
             self.collection.delete(ids=ids_to_delete)
-            print(f"-> Deleted {len(ids_to_delete)} old chunks with prefix '{prefix}'")
+            logging.info(f"-> Deleted {len(ids_to_delete)} old chunks with prefix '{prefix}'")
         else:
-            print(f"-> No old chunks with prefix '{prefix}' found")
+            logging.info(f"-> No old chunks with prefix '{prefix}' found")
 
     def upload_and_index_pdf(self, pdf_path: str, prefix: str):
         """Loads, splits, and stores a PDF in the database."""
@@ -28,7 +29,11 @@ class ApplicationService:
             DocumentDTO(id=i, text=t, metadata=m)
             for i, t, m in zip(ids, texts, metadatas)
         ])
+        logging.info(f"Indexed and stored pdf '{pdf_path}'")
 
     def answer_with_rag(self, question: str, k: int) -> str:
         """Returns an enriched prompt or a full RAG answer."""
+        logging.info(f"Enrich prompt for question '{question}'")
         return self.rag_service.enrich_prompt(question, k)
+    
+    
