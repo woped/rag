@@ -61,6 +61,21 @@ python main.py
 
 `docker run -p 5050:5000 rag-api`
 
+5. **Run with Logging**<br>
+   **Flask**<br>
+   `python main.py --loglevel <level>`<br>
+
+   **Docker**<br>
+   `docker run -p 5050:5000 rag-api --loglevel <level>`
+
+   Possible values for `<level>`:<br>
+   `debug`: displays all messages<br>
+   `info`: displays infos, warnings, errors, and critical messages<br>
+   `warning`: displays warnings, errors, and critical messages<br>
+   `error`: displays errors and critical messages<br>
+   `critical`: displays only critical messages<br>
+   
+
 ## 🧱 Architecture Overview
 
 This project follows a **hexagonal architecture** pattern for a clean, testable, and maintainable Retrieval-Augmented Generation (RAG) API. Key layers include:
