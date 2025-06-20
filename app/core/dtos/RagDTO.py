@@ -1,7 +1,8 @@
-from langchain_core.documents import Document
+from app.core.dtos.DocumentDTO import DocumentDTO
 from typing_extensions import List, TypedDict
 
 class State(TypedDict):
+    prompt: str
     question: str
-    context: List[Document]
+    context: List[DocumentDTO]
     answer: str

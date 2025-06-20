@@ -4,6 +4,7 @@ from app.infrastructure.db.PDFLoader import PDFLoader
 from app.core.services.DatabaseService import DatabaseService
 import app.core.ApplicationService  
 import os
+import traceback
 
 rest_bp = Blueprint("rest", __name__)
 
@@ -12,15 +13,29 @@ rest_bp = Blueprint("rest", __name__)
 def enrich_prompt():
     """
     Enriches the given prompt using similarity search and the RAG prompt template.
-    Expects JSON: { "prompt": "..." }
+    Expects JSON: { "prompt": "...", "question": "..." }
     Returns: { "enriched_prompt": "..." }
     """
     data = request.get_json()
     prompt = data.get("prompt", "")
+    question = data.get("question", "")
+    k = int(data.get("k", 3))
+    # Suche Kontext (Chunks) zu question
+    db_service = app.core.services.DatabaseService.db_service
+    results = db_service.search_docs(question, k)
+    context = [dto for dto, _ in results]
+    state = {
+        "prompt": prompt,
+        "question": question,
+        "context": context,
+        "answer": ""
+    }
     try:
-        enriched = app.core.ApplicationService.application_service.answer_with_rag(prompt)
+        enriched = app.core.ApplicationService.application_service.answer_with_rag(state)
+        print(f"[RAG] Enriched prompt: {enriched}")
         return jsonify({"enriched_prompt": enriched}), 200
     except Exception as e:
+        traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
 # ➤ Add documents (POST)
@@ -85,7 +100,7 @@ def search_docs():
         return jsonify({"error": "No query provided"}), 400
 
     try:
-        k = int(request.args.get("k", 3))  # Default to 10 results if not specified
+        k = int(request.args.get("k", 3))
         db_service = app.core.services.DatabaseService.db_service
         results = db_service.search_docs(query, k)
         # results ist jetzt eine Liste von (DocumentDTO, distance)
