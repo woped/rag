@@ -36,12 +36,17 @@ This project is a modular, testable Retrieval-Augmented Generation (RAG) API bui
 
 2. **Create a virtual environment**
 
-python -m venv venv
-source venv/bin/activate **Windows: venv\Scripts\activate**
+`python -m venv venv`
+
+`source venv/bin/activate` 
+
+Windows: 
+`source venv\Scripts\activate`
 
 3. **Install dependencies**
 
 pip install -r requirements.txt
+
 # New dependecies should be added in file "requirements.txt".
 
 4. **Run the Flask application**
@@ -52,8 +57,26 @@ python main.py
 
 5. **Run using Docker (alternative)**
 
-docker build -t rag-api .
-docker run -p 5050:5000 rag-api
+`docker build -t rag-api .`
+
+`docker run -p 5050:5000 rag-api`
+
+5. **Run with Logging**<br>
+The default logging is set to `warning` and will be active automatically when starting the application.<br>
+
+   **Flask**<br>
+   `python main.py --loglevel <level>`<br>
+
+   **Docker**<br>
+   `docker run -p 5050:5000 rag-api --loglevel <level>`
+
+   Possible values for `<level>`:<br>
+   `debug`: displays all messages<br>
+   `info`: displays infos, warnings, errors, and critical messages<br>
+   `warning`: displays warnings, errors, and critical messages<br>
+   `error`: displays errors and critical messages<br>
+   `critical`: displays only critical messages<br>
+   
 
 ## 🧱 Architecture Overview
 

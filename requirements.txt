@@ -10,3 +10,7 @@ pypdf
 requests
 sentence-transformers
 nltk
+
+#Logging
+argparse
+logging
