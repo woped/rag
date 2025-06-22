@@ -22,14 +22,14 @@ from app.infrastructure.db.DatabaseAdapter import DatabaseAdapter
 import app.core.services.RAGService 
 import app.core.services.DatabaseService
 
+# Load environment variables from .env file
+load_dotenv("config.env")
+
 # Initialize ChromaDB and PDF loader
 client = PersistentClient(path="chroma")
 collection = client.get_or_create_collection("rag_collection")
 pdf_loader = PDFLoader(collection)
 db_service = DatabaseService(DatabaseAdapter())
-
-# Load environment variables from .env file
-load_dotenv()
 
 # Load RAG prompt from LangChain Hub
 from langchain.prompts import ChatPromptTemplate
@@ -62,7 +62,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--loglevel",
-        default="warning",
+        default="debug",
         help="Set the logging level (debug, info, warning, error, critical)"
     )
     args = parser.parse_args()
@@ -91,4 +91,4 @@ if __name__ == "__main__":
     # ---------------------------------------
     port = int(os.getenv("PORT", 5000))
     app = create_app()
-    app.run(debug=True, use_reloader=False, port=port)
+    app.run(debug=True, use_reloader=False, port=port, host="0.0.0.0")

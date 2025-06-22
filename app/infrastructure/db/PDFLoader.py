@@ -10,6 +10,20 @@ import logging
 logger = logging.getLogger(__name__)
 
 class PDFLoader:
+    """
+    PDF document loader and text splitter for the RAG system.
+    
+    This class handles the extraction and preprocessing of PDF documents:
+    - Loads PDF files using PyPDFLoader
+    - Splits documents into manageable chunks using NLTK text splitter
+    - Configures chunk size and overlap from environment variables
+    - Stores processed chunks directly in ChromaDB collection
+    
+    The splitting strategy uses NLTK for more intelligent sentence-aware chunking,
+    ensuring that document chunks maintain semantic coherence for better
+    similarity search and retrieval performance.
+    """
+    
     def __init__(self, collection):
         logger.debug("Initialising PDFLoader")
         for resource in ['punkt', 'punkt_tab']:
@@ -20,11 +34,11 @@ class PDFLoader:
                 logger.info(f"Downloading NLTK resource: {resource}")
                 nltk.download(resource)
 
-        # Adjust the chunk size as needed. The higher the chunk size, the more entries in Chroma.
-        # If the chunk size is set too high, there may be issues with similarity search.
-        # If the search uses only a few terms and the entries contain large text blocks, the threshold (e.g., 0.9) may not be met and no output is returned.
+        chunk_size = int(os.environ.get("CHUNK_SIZE", 150))
+        chunk_overlap = int(os.environ.get("CHUNK_OVERLAP", 50))
+
         self.collection = collection
-        self.splitter = NLTKTextSplitter(chunk_size=150, chunk_overlap=50)
+        self.splitter = NLTKTextSplitter(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
 
     def load_and_split(self, file_path):
         logger.info(f"Loading and splitting PDF: {file_path}")
