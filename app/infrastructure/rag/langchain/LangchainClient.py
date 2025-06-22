@@ -10,36 +10,40 @@ logger = logging.getLogger(__name__)
 
 class LangchainClient:
     """
-    LangchainClient is a hybrid wrapper that combines LangChain's Chroma VectorStore
-    for semantic search with direct access to ChromaDB for CRUD operations.
-
-    - Uses LangChain for similarity search via sentence embeddings
-    - Uses ChromaDB native client for add, get, delete, update
-    - Stores all data persistently in the given directory
-
+    Low-level client integrating LangChain VectorStore with native ChromaDB operations.
+    
+    This client provides a hybrid approach to vector database operations, combining LangChain's
+    high-level semantic search capabilities with ChromaDB's native CRUD operations. Uses
+    HuggingFace's multilingual embedding model for robust text representation and similarity
+    matching across different languages.
+    
+    Architecture: Maintains both a LangChain VectorStore instance for semantic operations
+    and a direct ChromaDB client for administrative tasks. Handles document embeddings,
+    persistence, and threshold-based relevance filtering for optimal retrieval quality.
     """
+    
     def __init__(self, persist_directory="chroma"):
         self.persist_directory = persist_directory
         logger.info(f"LangchainClient initialised with Persist-directory: {self.persist_directory}")
         self.threshold = int(os.environ.get("THRESHOLD"))
         self.results_count = int(os.environ.get("RESULTS_COUNT"))
+        embedding_model = os.environ.get("EMBEDDING_MODEL")
 
-        # LangChain-compatible VectorStore using HuggingFace embeddings
-        self.embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
+        # LangChain VectorStore for semantic search
+        self.embeddings = HuggingFaceEmbeddings(model_name=embedding_model)
         self.vectorstore = Chroma(
             collection_name="rag_collection",
             embedding_function=self.embeddings,
             persist_directory=self.persist_directory
         )
 
-        # Native ChromaDB client for direct CRUD access
+        # Native ChromaDB client for CRUD operations
         self.client = PersistentClient(path=self.persist_directory)
         self.collection = self.client.get_or_create_collection(name="rag_collection")
 
-
+    # Add multiple documents with embeddings
     def add_docs(self, texts, metadatas=None, ids=None):
         logger.debug(f"add_docs called with {len(texts)} document(s).")
-        # Add one or more documents directly to ChromaDB using manually computed embeddings
         if metadatas is None:
             metadatas = [{} for _ in texts]
         if ids is None:
@@ -47,7 +51,6 @@ class LangchainClient:
 
         for i, (text, metadata, doc_id) in enumerate(zip(texts, metadatas, ids)):
             try:
-                # Compute embeddings from plain texts
                 embedding = self.embeddings.embed_documents([text])
                 self.collection.add(
                     documents=[text],
@@ -60,6 +63,7 @@ class LangchainClient:
                 logger.error(f"Error while adding document ID {doc_id} at index {i}: {e}", exc_info=True)
                 raise
 
+    # Get single document by ID
     def get_doc_by_id(self, id):
         logger.debug(f"Attempting to retrieve document with ID: {id}")
         result = self.collection.get(ids=[id])
@@ -73,13 +77,12 @@ class LangchainClient:
             "metadata": result["metadatas"][0]
         }
 
-    def search_docs(self, query, k=None, threshold=None):
-        if k is None:
-            k = self.results_count
-        if threshold is None:
-            threshold = self.threshold
-        logger.debug(f"Searching for top {k} documents with query: '{query}' and threshold: {threshold}")
-        results = self.vectorstore.similarity_search_with_score(query, k=k)
+    # Search documents using vector similarity
+    def search_docs(self, query):
+        results_count = self.results_count
+        threshold = self.threshold
+        logger.debug(f"Searching for top {results_count} documents with query: '{query}' and threshold: {threshold}")
+        results = self.vectorstore.similarity_search_with_score(query, k=results_count)
 
         docs = []
         for doc, distance in results:
@@ -93,19 +96,20 @@ class LangchainClient:
         logger.info(f"Found {len(docs)} documents within threshold {threshold}")
         return docs
 
+    # Update document by delete and re-add
     def update_doc(self, id, text, metadata=None):
-        #Update a document by deleting and re-adding it with the same ID.
         logger.info(f"Updating document with ID: {id}")
         self.delete_doc(id)
         self.add_docs([text], [metadata or {}], [id])
         logger.info(f"Document with ID: {id} updated successfully")
 
+    # Delete document by ID
     def delete_doc(self, id):
-        #Delete a document by its ID.
         logger.info(f"Deleting document with ID: {id}")
         self.collection.delete(ids=[id])
         logger.info(f"Document with ID: {id} deleted")
 
+    # Clear all documents from collection
     def clear(self):
         ids = self.collection.get()["ids"]
         if ids:
