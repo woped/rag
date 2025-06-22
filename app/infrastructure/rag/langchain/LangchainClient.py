@@ -4,6 +4,7 @@ from chromadb import PersistentClient
 from langchain_core.documents import Document
 from app.core.dtos.DocumentDTO import DocumentDTO
 import logging
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +21,8 @@ class LangchainClient:
     def __init__(self, persist_directory="chroma"):
         self.persist_directory = persist_directory
         logger.info(f"LangchainClient initialised with Persist-directory: {self.persist_directory}")
+        self.threshold = int(os.environ.get("THRESHOLD"))
+        self.results_count = int(os.environ.get("RESULTS_COUNT"))
 
         # LangChain-compatible VectorStore using HuggingFace embeddings
         self.embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
@@ -70,7 +73,11 @@ class LangchainClient:
             "metadata": result["metadatas"][0]
         }
 
-    def search_docs(self, query, k, threshold=25):
+    def search_docs(self, query, k=None, threshold=None):
+        if k is None:
+            k = self.results_count
+        if threshold is None:
+            threshold = self.threshold
         logger.debug(f"Searching for top {k} documents with query: '{query}' and threshold: {threshold}")
         results = self.vectorstore.similarity_search_with_score(query, k=k)
 

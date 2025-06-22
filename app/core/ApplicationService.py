@@ -4,6 +4,19 @@ import logging
 logger = logging.getLogger(__name__)
 
 class ApplicationService:
+    """
+    Core application service that orchestrates PDF indexing and RAG operations.
+    
+    This service acts as the main coordinator between different components:
+    - PDF loading and document chunking
+    - Vector database operations for document storage and retrieval
+    - RAG-based prompt enrichment for external LLM services
+    
+    The service handles the complete lifecycle from PDF ingestion to retrieving
+    relevant context for prompt augmentation, supporting the RAG pipeline
+    without direct LLM generation (delegated to external services like P2T).
+    """
+    
     def __init__(self, pdf_loader, db_service, rag_service, collection):
         self.pdf_loader = pdf_loader
         self.db_service = db_service

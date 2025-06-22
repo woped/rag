@@ -39,7 +39,6 @@ class RAGService:
         [Not used in P2T integration] Generates an answer using the LLM and context.
         Expects context as a list of DocumentDTOs.
         """
-        # Falls state["context"] aus search_docs kommt, ist es eine Liste von (DocumentDTO, distance)
         docs = [dto for dto, _ in state["context"]] if state["context"] and isinstance(state["context"][0], tuple) else state["context"]
         context_text = "\n\n".join(doc.text for doc in docs)
         messages = self.prompt.format_messages(question=state["question"], context=context_text)

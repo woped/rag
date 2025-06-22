@@ -30,7 +30,7 @@ class DatabaseAdapter(DatabasePort):
         return self.client.get_doc_by_id(id)
 
     def search_docs(self, query, k):
-        logger.debug(f"Searching for top {k} documents matching query: '{query}'")
+        logger.info(f"Delegating search to LangchainClient: k={k}")
         return self.client.search_docs(query, k)
     
     def update_doc(self, document):

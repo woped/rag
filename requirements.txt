@@ -1,5 +1,5 @@
 chromadb
-dotenv
+python-dotenv
 flask
 langchain
 langchain-chroma
@@ -10,7 +10,4 @@ pypdf
 requests
 sentence-transformers
 nltk
-
-#Logging
 argparse
-logging
