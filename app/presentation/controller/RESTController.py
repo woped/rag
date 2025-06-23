@@ -20,6 +20,7 @@ def enrich_prompt():
     
     try:
         enriched_prompt = app_service.process_rag_request(prompt, question)
+        logger.info(f"Enriched prompt: {enriched_prompt}")
         return jsonify({"enriched_prompt": enriched_prompt}), 200
         
     except Exception as e:
