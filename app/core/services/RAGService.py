@@ -1,25 +1,44 @@
 from typing import cast
 from app.core.dtos.RagDTO import State
 from app.core.dtos.DocumentDTO import DocumentDTO
+import logging
+
+logger = logging.getLogger(__name__)
 
 class RAGService:
 
     def __init__(self, db_service, llm, prompt):
         self.db = db_service
-        self.llm = llm  # Not required for enrich_prompt, only for full RAG pipeline
+        self.llm = llm
         self.prompt = prompt
 
     def enrich_prompt(self, question: str, k: int) -> str:
-        """
-        Enriches the given question with context from similarity search and the RAG prompt template.
-        This is the only method required for the P2T integration (no LLM call).
-        Uses DocumentDTO objects and extracts context from doc.text.
-        """
-        results = self.db.search_docs(question, k)
+        logger.info(f"Enriching prompt for question: '{question}' with top {k} documents")
+
+        try:
+            results = self.db.search_docs(question, k)
+        except Exception as e:
+            logger.error(f"Similarity search failed for question '{question}': {e}")
+            return question
+
         docs = [dto for dto, _ in results]
-        context_text = "\n\n".join(doc.text for doc in docs)
-        messages = self.prompt.format_messages(question=question, context=context_text)
-        return messages[0].content if messages else question
+        logger.debug(f"Found {len(docs)} documents for context enrichment")
+
+        context_text = "\n\n".join(doc.text for doc in docs if doc.text.strip())
+
+        if not context_text:
+            logger.warning(f"No usable context found for question: '{question}'")
+
+        try:
+            messages = self.prompt.format_messages(question=question, context=context_text)
+            logger.debug("Prompt formatted successfully")
+        except Exception as e:
+            logger.error(f"Prompt formatting failed: {e}")
+            return question
+
+        enriched = messages[0].content if messages else question
+        logger.debug(f"Enriched prompt length: {len(enriched)} characters")
+        return enriched
 
     # --- The following methods are not required for the P2T integration ---
     # --- They are only kept for standalone/full RAG pipeline tests ---
