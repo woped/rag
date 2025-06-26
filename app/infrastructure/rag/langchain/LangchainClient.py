@@ -27,21 +27,25 @@ class LangchainClient:
             self.persist_directory = persist_directory
             logger.info(f"LangchainClient initialised with Persist-directory: {self.persist_directory}")
 
-        self.threshold = int(os.environ.get("THRESHOLD"))
-        self.results_count = int(os.environ.get("RESULTS_COUNT"))
-        embedding_model = os.environ.get("EMBEDDING_MODEL")
+            self.threshold = int(os.environ.get("THRESHOLD"))
+            self.results_count = int(os.environ.get("RESULTS_COUNT"))
+            embedding_model = os.environ.get("EMBEDDING_MODEL")
 
-        # LangChain VectorStore for semantic search
-        self.embeddings = HuggingFaceEmbeddings(model_name=embedding_model)
-        self.vectorstore = Chroma(
-            collection_name="rag_collection",
-            embedding_function=self.embeddings,
-            persist_directory=self.persist_directory
-        )
+            # LangChain VectorStore for semantic search
+            self.embeddings = HuggingFaceEmbeddings(model_name=embedding_model)
+            self.vectorstore = Chroma(
+                collection_name="rag_collection",
+                embedding_function=self.embeddings,
+                persist_directory=self.persist_directory
+            )
 
-        # Native ChromaDB client for CRUD operations
-        self.client = PersistentClient(path=self.persist_directory)
-        self.collection = self.client.get_or_create_collection(name="rag_collection")
+            # Native ChromaDB client for CRUD operations
+            self.client = PersistentClient(path=self.persist_directory)
+            self.collection = self.client.get_or_create_collection(name="rag_collection")
+            
+        except Exception as e:
+            logger.error(f"Failed to initialize LangchainClient: {e}")
+            raise
 
     # Add multiple documents with embeddings
     def add_docs(self, texts, metadatas=None, ids=None):
