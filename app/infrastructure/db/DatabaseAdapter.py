@@ -24,27 +24,47 @@ class DatabaseAdapter(DatabasePort):
     # Add multiple documents to database
     def add_docs(self, documents):
         logger.info(f"Adding {len(documents)} documents")
-        texts = [doc.text for doc in documents]
-        metadatas = [doc.metadata or {} for doc in documents]
-        ids = [doc.id or None for doc in documents]
-        self.client.add_docs(texts, metadatas, ids)
+        try:
+            texts = [doc.text for doc in documents]
+            metadatas = [doc.metadata or {} for doc in documents]
+            ids = [doc.id or None for doc in documents]
+            self.client.add_docs(texts, metadatas, ids)
+        except Exception as e:
+            logger.exception("Failed to add documents")
+            raise
 
     # Get single document by ID
     def get_doc_by_id(self, id):
         logger.debug(f"Retrieving document with ID: {id}")
-        return self.client.get_doc_by_id(id)
+        try:
+            return self.client.get_doc_by_id(id)
+        except Exception as e:
+            logger.exception(f"Failed to retrieve document with ID: {id}")
+            raise
     
     # Update existing document
     def update_doc(self, document):
         logger.info(f"Updating document with ID: {document.id}")
-        self.client.update_doc(document.id, document.text, document.metadata)
+        try:
+            self.client.update_doc(document.id, document.text, document.metadata)
+        except Exception as e:
+            logger.exception(f"Failed to update document with ID: {document.id}")
+            raise
     
     # Delete document by ID
     def delete_doc(self, id):
         logger.warning(f"Deleting document with ID: {id}")
-        self.client.delete_doc(id)
+        try:
+            self.client.delete_doc(id)
+        except Exception as e:
+            logger.exception(f"Failed to delete document with ID: {id}")
+            raise
     
     # Clear all documents from database
     def clear(self):
         logger.critical("Clearing all documents from the database!")
-        self.client.clear()
+        try:
+            self.client.clear()
+        except Exception as e:
+            logger.exception("Failed to clear the database")
+            raise

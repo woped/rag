@@ -42,21 +42,33 @@ class PDFLoader:
 
     def load_and_split(self, file_path):
         logger.info(f"Loading and splitting PDF: {file_path}")
-        loader = PyPDFLoader(file_path)
-        return self.splitter.split_documents(loader.load())
+        try:
+            loader = PyPDFLoader(file_path)
+            documents = loader.load()
+            if not documents:
+                logger.warning(f"No content loaded from PDF: {file_path}")
+            chunks = self.splitter.split_documents(documents)
+            logger.debug(f"Split into {len(chunks)} chunks")
+            return chunks
+        except FileNotFoundError:
+            logger.error(f"PDF file not found: {file_path}")
+            raise
+        except Exception as e:
+            logger.exception(f"Failed to load and split PDF: {file_path}")
+            raise
 
     def store_chunks(self, chunks, filename_prefix="chunk"):
         logger.info(f"Storing {len(chunks)} chunks with prefix '{filename_prefix}'")
         texts = [chunk.page_content for chunk in chunks]
         metadatas = [chunk.metadata for chunk in chunks]
         ids = [f"{filename_prefix}_{i}" for i in range(len(texts))]
-        
+
         try:
             self.collection.delete(ids=ids)
             logger.debug(f"Deleted existing IDs: {ids}")
         except Exception as e:
             logger.warning(f"Warning when deleting existing IDs: {e}")
-        
+
         self.collection.add(documents=texts, metadatas=metadatas, ids=ids)
         logger.info(f"Chunks successfully stored in collection")
 

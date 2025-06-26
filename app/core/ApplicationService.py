@@ -35,16 +35,29 @@ class ApplicationService:
     
     # Load, split and store PDF in database
     def upload_and_index_pdf(self, pdf_path: str, prefix: str):
+        logger.info(f"Starting upload and indexing of '{pdf_path}' with prefix '{prefix}'")
         self.delete_old_docs_by_prefix(prefix)
-        chunks = self.pdf_loader.load_and_split(pdf_path)
+    
+        try:
+            chunks = self.pdf_loader.load_and_split(pdf_path)
+            logger.debug(f"Loaded {len(chunks)} chunks from PDF")
+        except Exception as e:
+            logger.error(f"Error while loading PDF '{pdf_path}': {e}")
+            raise
+
         texts = [c.page_content for c in chunks]
         metadatas = [c.metadata for c in chunks]
         ids = [f"{prefix}_{i}" for i in range(len(texts))]
-        self.db_service.add_docs([
+    
+        try:
+            self.db_service.add_docs([
             DocumentDTO(id=i, text=t, metadata=m)
             for i, t, m in zip(ids, texts, metadatas)
-        ])
-        logger.info(f"Indexed and stored pdf '{pdf_path}'")
+            ])
+            logger.info(f"Successfully stored {len(texts)} chunks from '{pdf_path}'")
+        except Exception as e:
+            logger.error(f"Error while storing chunks for '{pdf_path}': {e}")
+            raise
 
     # Load and index all PDFs from directory at startup
     def load_and_index_startup_pdfs(self, pdf_directory="PDF"):

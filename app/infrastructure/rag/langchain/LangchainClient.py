@@ -23,8 +23,10 @@ class LangchainClient:
     """
     
     def __init__(self, persist_directory="chroma"):
-        self.persist_directory = persist_directory
-        logger.info(f"LangchainClient initialised with Persist-directory: {self.persist_directory}")
+        try:
+            self.persist_directory = persist_directory
+            logger.info(f"LangchainClient initialised with Persist-directory: {self.persist_directory}")
+
         self.threshold = int(os.environ.get("THRESHOLD"))
         self.results_count = int(os.environ.get("RESULTS_COUNT"))
         embedding_model = os.environ.get("EMBEDDING_MODEL")
@@ -66,16 +68,20 @@ class LangchainClient:
     # Get single document by ID
     def get_doc_by_id(self, id):
         logger.debug(f"Attempting to retrieve document with ID: {id}")
-        result = self.collection.get(ids=[id])
-        if not result["documents"]:
-            logger.warning(f"No document found with ID: {id}")
-            return None
-        logger.info(f"Document with ID: {id} retrieved successfully")
-        return {
-            "id": result["ids"][0],
-            "text": result["documents"][0],
-            "metadata": result["metadatas"][0]
-        }
+        try:
+            result = self.collection.get(ids=[id])
+            if not result["documents"]:
+                logger.warning(f"No document found with ID: {id}")
+                return None
+            logger.info(f"Document with ID: {id} retrieved successfully")
+            return {
+                "id": result["ids"][0],
+                "text": result["documents"][0],
+                "metadata": result["metadatas"][0]
+            }
+        except Exception:
+            logger.exception(f"Failed to retrieve document with ID: {id}")
+            raise
 
     # Search documents using vector similarity
     def search_docs(self, query):
@@ -99,23 +105,35 @@ class LangchainClient:
     # Update document by delete and re-add
     def update_doc(self, id, text, metadata=None):
         logger.info(f"Updating document with ID: {id}")
-        self.delete_doc(id)
-        self.add_docs([text], [metadata or {}], [id])
-        logger.info(f"Document with ID: {id} updated successfully")
+        try:
+            self.delete_doc(id)
+            self.add_docs([text], [metadata or {}], [id])
+            logger.info(f"Document with ID: {id} updated successfully")
+        except Exception:
+            logger.exception(f"Failed to update document with ID: {id}")
+            raise
 
     # Delete document by ID
     def delete_doc(self, id):
         logger.info(f"Deleting document with ID: {id}")
-        self.collection.delete(ids=[id])
-        logger.info(f"Document with ID: {id} deleted")
+        try:
+            self.collection.delete(ids=[id])
+            logger.info(f"Document with ID: {id} deleted")
+        except Exception:
+            logger.exception(f"Failed to delete document with ID: {id}")
+            raise
 
     # Clear all documents from collection
     def clear(self):
-        ids = self.collection.get()["ids"]
-        if ids:
-            logger.warning(f"Clearing all documents, total count: {len(ids)}")
-            self.collection.delete(ids=ids)
-            logger.warning("All documents cleared")
-        else:
-            logger.info("Clear called but no documents to delete")
+        try:
+            ids = self.collection.get()["ids"]
+            if ids:
+                logger.warning(f"Clearing all documents, total count: {len(ids)}")
+                self.collection.delete(ids=ids)
+                logger.warning("All documents cleared")
+            else:
+                logger.info("Clear called but no documents to delete")
+        except Exception:
+            logger.exception("Failed to clear all documents")
+            raise
 
