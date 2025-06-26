@@ -1,0 +1,47 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual environment
+venv/
+env/
+
+# Environment variables
+.env
+.env.*
+
+# IDEs and editors
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Logs and debug
+*.log
+
+# OS-specific
+.DS_Store
+Thumbs.db
+
+# Pytest and coverage
+.pytest_cache/
+.coverage
+htmlcov/
+.cache/
+.tox/
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# Jupyter and IPython
+.ipynb_checkpoints/
+
+# Docker
+*.pid
+*.tar
+*.db
+*.sqlite3
+/chroma
