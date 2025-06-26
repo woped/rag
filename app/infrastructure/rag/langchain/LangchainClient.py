@@ -4,6 +4,7 @@ from chromadb import PersistentClient
 from langchain_core.documents import Document
 from app.core.dtos.DocumentDTO import DocumentDTO
 import logging
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +22,9 @@ class LangchainClient:
         try:
             self.persist_directory = persist_directory
             logger.info(f"LangchainClient initialised with Persist-directory: {self.persist_directory}")
+
+        self.threshold = int(os.environ.get("THRESHOLD"))
+        self.results_count = int(os.environ.get("RESULTS_COUNT"))
 
             self.embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
             self.vectorstore = Chroma(
@@ -76,14 +80,18 @@ class LangchainClient:
             logger.exception(f"Failed to retrieve document with ID: {id}")
             raise
 
-    def search_docs(self, query, k, threshold=25):
+    def search_docs(self, query, k=None, threshold=None):
+        if k is None:
+            k = self.results_count
+        if threshold is None:
+            threshold = self.threshold
         logger.debug(f"Searching for top {k} documents with query: '{query}' and threshold: {threshold}")
         results = self.vectorstore.similarity_search_with_score(query, k=k)
 
         docs = []
         for doc, distance in results:
             logger.debug(f"Distance: {distance}, ID: {getattr(doc, 'id', None)}")
-            if distance <= threshold:
+            if distance < threshold:
                 id_ = getattr(doc, 'id', None) or doc.metadata.get('id', None) or "unknown"
                 text = getattr(doc, 'page_content', None) or getattr(doc, 'text', None) or doc.metadata.get('text', None) or ""
                 metadata = getattr(doc, 'metadata', None) or {}

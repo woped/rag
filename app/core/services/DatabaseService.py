@@ -1,3 +1,7 @@
+from app.core.ports.DatabasePort import DatabasePort
+from app.core.dtos.DocumentDTO import DocumentDTO
+import logging
+
 """
     DatabaseService provides high-level access to vector database operations
     for the application core. It delegates all data-related functionality
@@ -6,9 +10,6 @@
     This service acts as the application's main entry point for storing,
     retrieving, updating, deleting, and searching documents.
 """
-from app.core.ports.DatabasePort import DatabasePort
-from app.core.dtos.DocumentDTO import DocumentDTO
-import logging
 
 logger = logging.getLogger(__name__)
 

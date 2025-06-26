@@ -4,25 +4,57 @@ from app.infrastructure.db.PDFLoader import PDFLoader
 from app.core.services.DatabaseService import DatabaseService
 import app.core.ApplicationService  
 import os
+import traceback
+import logging
 
 rest_bp = Blueprint("rest", __name__)
+logger = logging.getLogger(__name__)
 
 # ➤ Enrich prompt with similarity search and RAG prompt template (POST)
 @rest_bp.route("/rag/enrich", methods=["POST"])
 def enrich_prompt():
-    """
-    Enriches the given prompt using similarity search and the RAG prompt template.
-    Expects JSON: { "prompt": "..." }
-    Returns: { "enriched_prompt": "..." }
-    """
     data = request.get_json()
     prompt = data.get("prompt", "")
+    question = data.get("question", "")
+    results_count = int(data.get("results_count", os.environ.get("RESULTS_COUNT", 3)))
+    
+    logger.info(f"[STEP 1] Original prompt: {prompt}")
+    logger.info(f"[STEP 2] Question: {question}")
+    logger.info(f"[STEP 3] Results count: {results_count}")
+    
+    db_service = app.core.services.DatabaseService.db_service
+    results = db_service.search_docs(question, results_count)
+    
+    logger.info(f"[STEP 4] Similarity search returned {len(results)} results")
+    
+    context = [dto for dto, _ in results]
+    logger.info(f"[STEP 5] Context has {len(context)} documents")
+    
+    # Debug: Context-Inhalte anzeigen
+    for i, dto in enumerate(context):
+        logger.info(f"[CONTEXT {i+1}] {dto.text[:200]}...")
+    
+    state = {
+        "prompt": prompt,
+        "question": question,
+        "context": context,
+        "answer": ""
+    }
+    
+    logger.info(f"[STEP 6] State created with {len(state['context'])} context documents")
+    
     try:
-        enriched = app.core.ApplicationService.application_service.answer_with_rag(prompt)
+        logger.info("[STEP 7] Calling answer_with_rag...")
+        enriched = app.core.ApplicationService.application_service.answer_with_rag(state)
+        logger.info(f"[STEP 8] answer_with_rag returned: {type(enriched)}, length: {len(str(enriched))}")
+        logger.info(f"[STEP 9] Enriched content: {enriched}")
+        
         return jsonify({"enriched_prompt": enriched}), 200
     except Exception as e:
+        logger.error(f"[ERROR] Exception in answer_with_rag: {str(e)}")
+        traceback.print_exc()
         return jsonify({"error": str(e)}), 500
-
+    
 # ➤ Add documents (POST)
 @rest_bp.route("/rag", methods=["POST"])
 def add_docs():
@@ -85,10 +117,17 @@ def search_docs():
         return jsonify({"error": "No query provided"}), 400
 
     try:
-        k = int(request.args.get("k", 3))  # Default to 10 results if not specified
+        results_count = int(request.args.get("results_count", os.environ.get("RESULTS_COUNT", 3)))
+        
+        logger.info(f"Search request - query: '{query}', results_count: {results_count}")
+        
         db_service = app.core.services.DatabaseService.db_service
-        results = db_service.search_docs(query, k)
-        # results ist jetzt eine Liste von (DocumentDTO, distance)
+        results = db_service.search_docs(query, results_count)
+        
+        logger.info(f"Search completed - found {len(results)} results")
+        for i, (dto, distance) in enumerate(results):
+            logger.info(f"Search result {i+1}: distance={distance:.4f}, id={dto.id}, text={dto.text[:100]}...")
+        
         response = [
             {
                 "id": dto.id,
@@ -100,7 +139,9 @@ def search_docs():
         ]
         return jsonify({"results": response}), 200
     except Exception as e:
+        logger.error(f"Error in search: {str(e)}")
         return jsonify({"error": str(e)}), 500
+
 
 # ➤ Delete a document by ID (DELETE)
 @rest_bp.route("/rag/<doc_id>", methods=["DELETE"])

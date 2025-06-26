@@ -48,7 +48,7 @@ def test_similarity_search(test_doc):
     assert res.status_code == 200
     data = res.json()
     assert "results" in data
-    assert any(test_doc["text"] in doc["content"] for doc in data["results"])
+    assert any(test_doc["text"] in doc["text"] for doc in data["results"])
 
 # ➤ Test: DELETE /rag/<id> (Delete document by ID)
 def test_delete_document(test_doc):
