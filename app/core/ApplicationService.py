@@ -81,6 +81,17 @@ class ApplicationService:
         
         logger.info(f"PDF indexing complete: {results['successfully_indexed']} successful, {results['failed']} failed")
         return results
+    
+    # Delete documents by ID prefix
+    def delete_old_docs_by_prefix(self, prefix):
+        results = self.collection.get()
+        all_ids = results.get("ids", [])
+        ids_to_delete = [id_ for id_ in all_ids if id_.startswith(prefix)]
+        if ids_to_delete:
+            self.collection.delete(ids=ids_to_delete)
+            logger.info(f"-> Deleted {len(ids_to_delete)} old chunks with prefix '{prefix}'")
+        else:
+            logger.info(f"-> No old chunks with prefix '{prefix}' found")
 
     # === RAG Operations ===
     
@@ -135,15 +146,4 @@ class ApplicationService:
         logger.warning("Clearing all documents via ApplicationService")
         return self.db_service.clear()
 
-    # === Internal Helper Operations ===
-    
-    # Delete documents by ID prefix
-    def delete_old_docs_by_prefix(self, prefix):
-        results = self.collection.get()
-        all_ids = results.get("ids", [])
-        ids_to_delete = [id_ for id_ in all_ids if id_.startswith(prefix)]
-        if ids_to_delete:
-            self.collection.delete(ids=ids_to_delete)
-            logger.info(f"-> Deleted {len(ids_to_delete)} old chunks with prefix '{prefix}'")
-        else:
-            logger.info(f"-> No old chunks with prefix '{prefix}' found")
+
