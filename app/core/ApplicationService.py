@@ -1,6 +1,5 @@
 from app.core.dtos.DocumentDTO import DocumentDTO
 import logging
-import glob
 import os
 
 logger = logging.getLogger(__name__)
@@ -24,101 +23,49 @@ class ApplicationService:
     # Singleton instance - set in main.py
     application_service = None
     
-    def __init__(self, pdf_loader, db_service, rag_service, collection):
-        self.pdf_loader = pdf_loader
+    def __init__(self, db_service, rag_service, pdf_service, preprocessing_service, collection):
         self.db_service = db_service
         self.rag_service = rag_service
+        self.pdf_service = pdf_service
+        self.preprocessing_service = preprocessing_service
         self.collection = collection
         logger.info("ApplicationService initialized")
 
     # === PDF Processing Operations ===
     
-    # Load, split and store PDF in database
-    def upload_and_index_pdf(self, pdf_path: str, prefix: str):
-        logger.info(f"Starting upload and indexing of '{pdf_path}' with prefix '{prefix}'")
-        self.delete_old_docs_by_prefix(prefix)
-    
-        try:
-            chunks = self.pdf_loader.load_and_split(pdf_path)
-            logger.debug(f"Loaded {len(chunks)} chunks from PDF")
-        except Exception as e:
-            logger.error(f"Error while loading PDF '{pdf_path}': {e}")
-            raise
-
-        texts = [c.page_content for c in chunks]
-        metadatas = [c.metadata for c in chunks]
-        ids = [f"{prefix}_{i}" for i in range(len(texts))]
-    
-        try:
-            self.db_service.add_docs([
-            DocumentDTO(id=i, text=t, metadata=m)
-            for i, t, m in zip(ids, texts, metadatas)
-            ])
-            logger.info(f"Successfully stored {len(texts)} chunks from '{pdf_path}'")
-        except Exception as e:
-            logger.error(f"Error while storing chunks for '{pdf_path}': {e}")
-            raise
-
     # Load and index all PDFs from directory at startup
-    def load_and_index_startup_pdfs(self, pdf_directory="PDF"):
-        pdf_pattern = os.path.join(pdf_directory, "*.pdf")
-        pdf_files = glob.glob(pdf_pattern)
-        
-        results = {
-            "total_found": len(pdf_files),
-            "successfully_indexed": 0,
-            "failed": 0,
-            "errors": []
-        }
-        
-        if not pdf_files:
-            logger.info(f"No PDF files found in {pdf_directory}/ directory")
-            return results
-            
-        logger.info(f"Found {len(pdf_files)} PDF files to index in {pdf_directory}/")
-        
-        for pdf_path in pdf_files:
-            logger.info(f"Loading PDF: {pdf_path}")
-            filename_prefix = os.path.basename(pdf_path).replace(".pdf", "")
-            
-            try:
-                self.upload_and_index_pdf(pdf_path, filename_prefix)
-                logger.info(f"Successfully indexed: {pdf_path}")
-                results["successfully_indexed"] += 1
-                
-            except Exception as e:
-                error_msg = f"Failed to index {pdf_path}: {str(e)}"
-                logger.error(error_msg)
-                results["failed"] += 1
-                results["errors"].append(error_msg)
-        
-        logger.info(f"PDF indexing complete: {results['successfully_indexed']} successful, {results['failed']} failed")
-        return results
-    
-    # Delete documents by ID prefix
-    def delete_old_docs_by_prefix(self, prefix):
-        results = self.collection.get()
-        all_ids = results.get("ids", [])
-        ids_to_delete = [id_ for id_ in all_ids if id_.startswith(prefix)]
-        if ids_to_delete:
-            self.collection.delete(ids=ids_to_delete)
-            logger.info(f"-> Deleted {len(ids_to_delete)} old chunks with prefix '{prefix}'")
-        else:
-            logger.info(f"-> No old chunks with prefix '{prefix}' found")
+    def load_startup_pdfs(self, pdf_directory="PDF"):
+        logger.info(f"Starting startup PDF indexing from directory: {pdf_directory}")
+        return self.pdf_service.load_and_index_startup_pdfs(pdf_directory, self.collection)
 
     # === RAG Operations ===
     
     # Complete RAG pipeline: retrieve -> augment -> return enriched prompt
-    def process_rag_request(self, prompt: str, question: str) -> str:
+    def process_rag_request(self, prompt: str, diagram: str) -> str:
         logger.info("[RAG PIPELINE] Starting RAG workflow")
+        
+        # Check if diagram preprocessing is enabled
+        preprocessing_enabled = os.getenv("ENABLE_DIAGRAM_PREPROCESSING").lower() == "true"
+        logger.debug(f"[RAG PIPELINE] Original diagram: {diagram}")
+        
+        if preprocessing_enabled:
+            # Preprocessing: Extract semantic content from PNML/BPMN
+            logger.debug(f"[RAG PIPELINE] Diagram preprocessing enabled")
+            query = self.preprocessing_service.preprocess(diagram)
+            logger.debug(f"[RAG PIPELINE] RAG search prompt: '{query}'")
+        else:
+            # Use diagram as-is for RAG search
+            query = diagram
+            logger.debug(f"[RAG PIPELINE] Diagram preprocessing disabled - using original diagram")
+        
         # Phase 1: Retrieve
-        results = self.rag_service.retrieve(question)
+        results = self.rag_service.retrieve(query)
         context = [dto for dto, _ in results]
         
         # Phase 2: Augment
         state = {
             "prompt": prompt,
-            "question": question,
+            "diagram": diagram,
             "context": context,
             "answer": ""  # Not used
         }
@@ -158,5 +105,3 @@ class ApplicationService:
     def clear_docs(self):
         logger.warning("Clearing all documents via ApplicationService")
         return self.db_service.clear()
-
-

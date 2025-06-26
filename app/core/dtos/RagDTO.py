@@ -7,11 +7,11 @@ class State(TypedDict):
     
     Attributes:
         prompt: Original user prompt for text generation
-        question: Query for context document retrieval
+        diagram: Process diagram (PNML/BPMN XML) for context document retrieval
         context: Retrieved document chunks for context
         answer: Generated response (reserved for future use)
     """
     prompt: str
-    question: str
+    diagram: str
     context: List[DocumentDTO]
     answer: str

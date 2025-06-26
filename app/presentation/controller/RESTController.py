@@ -16,10 +16,10 @@ def enrich_prompt():
 
     data = request.get_json()
     prompt = data.get("prompt", "")
-    question = data.get("question", "")
+    diagram = data.get("diagram", "")
     
     try:
-        enriched_prompt = app_service.process_rag_request(prompt, question)
+        enriched_prompt = app_service.process_rag_request(prompt, diagram)
         logger.info(f"Enriched prompt: {enriched_prompt}")
         return jsonify({"enriched_prompt": enriched_prompt}), 200
         

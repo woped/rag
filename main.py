@@ -13,11 +13,12 @@ from langchain.prompts import ChatPromptTemplate
 load_dotenv("config.env")
 
 # Import application components
-from app.infrastructure.db.PDFLoader import PDFLoader
 from app.infrastructure.db.DatabaseAdapter import DatabaseAdapter
 from app.infrastructure.rag.RAGAdapter import RAGAdapter
 from app.core.services.DatabaseService import DatabaseService
 from app.core.services.RAGService import RAGService
+from app.core.services.PDFService import PDFService
+from app.core.services.PreprocessingService import PreprocessingService
 from app.core.ApplicationService import ApplicationService
 
 # Initialize ChromaDB client and collection
@@ -32,13 +33,14 @@ rag_prompt = ChatPromptTemplate.from_messages([
     )
 ])
 
-# Initialize services with new architecture
-pdf_loader = PDFLoader(collection)
+# Initialize services
 db_adapter = DatabaseAdapter()
 db_service = DatabaseService(db_adapter)
+pdf_service = PDFService()
 rag_adapter = RAGAdapter(rag_prompt)
 rag_service = RAGService(rag_adapter, db_service)
-application_service = ApplicationService(pdf_loader, db_service, rag_service, collection)
+preprocessing_service = PreprocessingService()
+application_service = ApplicationService(db_service, rag_service, pdf_service, preprocessing_service, collection)
 
 # Set singleton for REST controller access
 ApplicationService.application_service = application_service
@@ -74,9 +76,8 @@ if __name__ == "__main__":
     logger.info(f"Logging level set to: {args.loglevel.upper()}")
 
     # Load and index existing PDF files at startup
-    indexing_results = application_service.load_and_index_startup_pdfs()
-    logger.info(f"Startup PDF indexing: {indexing_results['successfully_indexed']} indexed, {indexing_results['failed']} failed")
-
+    indexing_results = application_service.load_startup_pdfs()
+    
     # Start Flask application
     port = int(os.getenv("PORT"))
     host = os.getenv("HOST")

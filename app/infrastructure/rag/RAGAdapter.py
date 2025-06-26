@@ -46,7 +46,7 @@ class RAGAdapter(RAGPort):
             context_text = "\n\n".join(context_blocks)
         
          # Get additional instruction from environment
-        additional_llm_instruction = os.getenv("ADDITIONAL_LLM_INSTRUCTION", "")
+        additional_llm_instruction = os.getenv("ADDITIONAL_LLM_INSTRUCTION")
         
         # Use template or simple format
         if self.prompt_template:
