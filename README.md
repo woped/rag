@@ -59,7 +59,7 @@ python main.py
 
 `docker build -t rag-api .`
 
-`docker run -p 5050:5000 rag-api`
+`docker run -p 5000:5000 rag-api`
 
 5. **Run with Logging**<br>
 The default logging is set to `warning` and will be active automatically when starting the application.<br>
@@ -68,7 +68,7 @@ The default logging is set to `warning` and will be active automatically when st
    `python main.py --loglevel <level>`<br>
 
    **Docker**<br>
-   `docker run -p 5050:5000 rag-api --loglevel <level>`
+   `docker run -p 5000:5000 rag-api --loglevel <level>`
 
    Possible values for `<level>`:<br>
    `debug`: displays all messages<br>

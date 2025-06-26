@@ -1,25 +1,29 @@
 from abc import ABC, abstractmethod
+from typing import List, Tuple
+from app.core.dtos.DocumentDTO import DocumentDTO
+from app.core.dtos.RagDTO import State
 
 class RAGPort(ABC):
     """
-    Abstract port for RAG (Retrieval-Augmented Generation) operations.
+    Abstract interface defining the contract for Retrieval-Augmented Generation operations.
     
-    NOTE: This interface is currently not used in the active implementation.
-    The current architecture delegates LLM generation to external services (P2T).
+    This port establishes the standard interface for RAG pipeline implementations, ensuring
+    consistent behavior across different RAG service implementations. Defines the three core
+    RAG phases: retrieve (semantic document search), augment (prompt enhancement with context),
+    and generate (response creation - delegated to external P2T service in WoPeD architecture).
     
-    This port is reserved for potential future implementations where the RAG service
-    would handle both retrieval AND generation internally, making direct LLM calls
-    instead of returning enriched prompts to external services.
-    
-    Current flow: RAG service → enriched prompt → P2T service → LLM generation
+    Implementations must provide concrete behavior for document retrieval using similarity search
+    and prompt augmentation with retrieved context, enabling pluggable RAG strategies.
     """
 
     @abstractmethod
-    def retrieve(self):
-        """Retrieve relevant documents based on query."""
+    def retrieve(self, query: str) -> List[Tuple[DocumentDTO, float]]:
         pass
 
     @abstractmethod
-    def generate(self):
-        """Generate answer using retrieved context and LLM."""
+    def augment(self, state: State) -> str:
+        pass
+
+    @abstractmethod
+    def generate(self, prompt: str, context: List[DocumentDTO]) -> str:
         pass

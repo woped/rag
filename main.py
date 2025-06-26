@@ -1,8 +1,5 @@
 # Standard library imports
 import os
-import glob
-
-# imports for logging
 import argparse
 import logging
 
@@ -10,85 +7,80 @@ import logging
 from flask import Flask
 from dotenv import load_dotenv
 from chromadb import PersistentClient
-from langchain import hub
-
-# Project-specific imports
-from app.presentation.controller.RESTController import rest_bp
-from app.infrastructure.db.PDFLoader import PDFLoader
-from app.core.services.RAGService import RAGService
-from app.core.ApplicationService import ApplicationService
-from app.core.services.DatabaseService import DatabaseService
-from app.infrastructure.db.DatabaseAdapter import DatabaseAdapter
-import app.core.services.RAGService 
-import app.core.services.DatabaseService
-
-# Load environment variables from .env file
-load_dotenv("config.env")
-
-# Initialize ChromaDB and PDF loader
-client = PersistentClient(path="chroma")
-collection = client.get_or_create_collection("rag_collection")
-pdf_loader = PDFLoader(collection)
-db_service = DatabaseService(DatabaseAdapter())
-
-# Load RAG prompt from LangChain Hub
 from langchain.prompts import ChatPromptTemplate
 
+# Load configuration
+load_dotenv("config.env")
+
+# Import application components
+from app.infrastructure.db.PDFLoader import PDFLoader
+from app.infrastructure.db.DatabaseAdapter import DatabaseAdapter
+from app.infrastructure.rag.RAGAdapter import RAGAdapter
+from app.core.services.DatabaseService import DatabaseService
+from app.core.services.RAGService import RAGService
+from app.core.ApplicationService import ApplicationService
+
+# Initialize ChromaDB client and collection
+client = PersistentClient(path="chroma")
+collection = client.get_or_create_collection("rag_collection")
+
+# Configure RAG prompt template
 rag_prompt = ChatPromptTemplate.from_messages([
     (
         "system",
-        "{prompt}\n\nKontext:\n{context}\n\nAntwort:"
+        "{prompt}\n\n{additional_llm_instruction}\n\nKontext:\n{context}\n\nAntwort:"
     )
 ])
 
-# Initialize RAGService (llm=None for prompt enrichment only)
-rag_service = RAGService(db_service, None, rag_prompt)
+# Initialize services with new architecture
+pdf_loader = PDFLoader(collection)
+db_adapter = DatabaseAdapter()
+db_service = DatabaseService(db_adapter)
+rag_adapter = RAGAdapter(rag_prompt)
+rag_service = RAGService(rag_adapter, db_service)
 application_service = ApplicationService(pdf_loader, db_service, rag_service, collection)
 
-# Provide singletons for use in RESTController and other modules
-app.core.services.RAGService.rag_service = rag_service
-app.core.ApplicationService.application_service = application_service
-app.core.services.DatabaseService.db_service = db_service
+# Set singleton for REST controller access
+ApplicationService.application_service = application_service
 
+# Import REST controller after singletons are initialized
+from app.presentation.controller.RESTController import rest_bp
+
+# Create and configure Flask application with REST endpoints
 def create_app():
     app = Flask(__name__)
     app.register_blueprint(rest_bp)
     return app
 
 if __name__ == "__main__":
-    # ---------------------------------------
-    # Set up argument parser for log level
-    # ---------------------------------------
-    parser = argparse.ArgumentParser()
+    # Configure logging
+    parser = argparse.ArgumentParser(description="RAG API Server")
     parser.add_argument(
         "--loglevel",
         default="debug",
-        help="Set the logging level (debug, info, warning, error, critical)"
+        choices=["debug", "info", "warning", "error", "critical"],
+        help="Set the logging level"
     )
     args = parser.parse_args()
 
-    numeric_level = getattr(logging, args.loglevel.upper(), None)
-    if not isinstance(numeric_level, int):
-        raise ValueError(f"invalid loglevel: {args.loglevel}, valid input: debug, info, warning, error or critical")
-
+    numeric_level = getattr(logging, args.loglevel.upper())
     logging.basicConfig(
         level=numeric_level,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     )
     
-    logging.info("Logging successfully initialised")
+    logger = logging.getLogger(__name__)
+    logger.info("RAG API Server starting up...")
+    logger.info(f"Logging level set to: {args.loglevel.upper()}")
 
-    # ---------------------------------------
-    # load pdf files
-    # ---------------------------------------
-    for pdf_path in glob.glob("PDF/*.pdf"):
-        logging.info(f"--> Loading: {pdf_path}")
-        filename_prefix = os.path.basename(pdf_path).replace(".pdf", "")
-        application_service.upload_and_index_pdf(pdf_path, filename_prefix)
+    # Load and index existing PDF files at startup
+    indexing_results = application_service.load_and_index_startup_pdfs()
+    logger.info(f"Startup PDF indexing: {indexing_results['successfully_indexed']} indexed, {indexing_results['failed']} failed")
 
-    # ---------------------------------------
-    # start FLASK App
-    # ---------------------------------------
-    port = int(os.getenv("PORT", 5000))
+    # Start Flask application
+    port = int(os.getenv("PORT"))
+    host = os.getenv("HOST")
+    
+    logger.info(f"Starting Flask server on {host}:{port}")
     app = create_app()
-    app.run(debug=True, use_reloader=False, port=port, host="0.0.0.0")
+    app.run(debug=True, use_reloader=False, port=port, host=host)

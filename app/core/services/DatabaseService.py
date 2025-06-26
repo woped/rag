@@ -2,45 +2,59 @@ from app.core.ports.DatabasePort import DatabasePort
 from app.core.dtos.DocumentDTO import DocumentDTO
 import logging
 
-"""
-    DatabaseService provides high-level access to vector database operations
-    for the application core. It delegates all data-related functionality
-    to an implementation of the DatabasePort interface.
-
-    This service acts as the application's main entry point for storing,
-    retrieving, updating, deleting, and searching documents.
-"""
+logger = logging.getLogger(__name__)
 
 logger = logging.getLogger(__name__)
 
 class DatabaseService:
+    """
+    Manages document persistence and CRUD operations for the WoPeD RAG system.
+    
+    This service provides the domain layer interface for document storage operations, adding
+    business validation and error handling on top of the DatabaseAdapter infrastructure.
+    Ensures data integrity through validation rules and maintains clean separation between
+    business logic and persistence concerns.
+    
+    Key responsibilities: document validation, CRUD operation orchestration, error handling,
+    and business rule enforcement. Acts as a gateway between the application layer and the
+    database infrastructure, providing a simplified interface for document management.
+    """
+    
     def __init__(self, database_port: DatabasePort):
         self.db = database_port
+        logger.info("DatabaseService initialized")
 
+    # Add documents with validation
     def add_docs(self, documents: list[DocumentDTO]):
-        logger.debug(f"Adding {len(documents)} documents")
+        logger.info(f"Adding {len(documents)} documents")
+        
         try:
-            self.db.add_docs(documents)
+            valid_docs = [doc for doc in documents if doc.id and doc.text]
+       
+            if len(valid_docs) != len(documents):
+                logger.warning(f"Filtered out {len(documents) - len(valid_docs)} invalid documents")
+
+            if valid_docs:
+                self.db.add_docs(valid_docs)
+                logger.info(f"Successfully added {len(valid_docs)} documents")
         except Exception:
             logger.exception("Failed to add documents")
             raise
 
-    def get_doc_by_id(self, id: str):
+    # Get document by ID
+    def get_doc_by_id(self, doc_id: str):
+        if not doc_id:
+            logger.warning("Empty document ID provided")
+            return None
+            
         logger.debug(f"Retrieving document with ID: {id}")
         try:
-            return self.db.get_doc_by_id(id)
+            return self.db.get_doc_by_id(doc_id)
         except Exception:
             logger.exception(f"Failed to retrieve document with ID: {id}")
             raise
 
-    def search_docs(self, query: str, k: int):
-        logger.debug(f"Searching documents with query: '{query}', top {k}")
-        try:
-            return self.db.search_docs(query, k)
-        except Exception:
-            logger.exception(f"Failed to search documents with query: '{query}'")
-            raise
-
+    # Update existing document
     def update_doc(self, document: DocumentDTO):
         logger.debug(f"Updating document with ID: {document.id}")
         try:
@@ -49,14 +63,16 @@ class DatabaseService:
             logger.exception(f"Failed to update document with ID: {document.id}")
             raise
 
-    def delete_doc(self, id: str):
+    # Delete document by ID
+    def delete_doc(self, doc_id: str):
         logger.debug(f"Deleting document with ID: {id}")
         try:
             self.db.delete_doc(id)
         except Exception:
             logger.exception(f"Failed to delete document with ID: {id}")
             raise
-
+    
+    # Clear all documents
     def clear(self):
         logger.warning("Clearing all documents from database")
         try:
