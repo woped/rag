@@ -4,30 +4,29 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-logger = logging.getLogger(__name__)
-
 class DatabaseService:
     """
-    Manages document persistence and CRUD operations for the WoPeD RAG system.
-    
-    This service provides the domain layer interface for document storage operations, adding
-    business validation and error handling on top of the DatabaseAdapter infrastructure.
-    Ensures data integrity through validation rules and maintains clean separation between
-    business logic and persistence concerns.
-    
-    Key responsibilities: document validation, CRUD operation orchestration, error handling,
-    and business rule enforcement. Acts as a gateway between the application layer and the
-    database infrastructure, providing a simplified interface for document management.
+    Domain service for managing document persistence and CRUD operations in the WoPeD RAG system.
+
+    This service acts as the business logic layer for all document storage workflows. It adds
+    validation, error handling, and business rules on top of the technical DatabaseAdapter.
+    DatabaseService ensures data integrity and a clear separation between business logic and persistence.
+
+    Responsibilities:
+      - Validate documents and enforce business rules before persistence
+      - Orchestrate all CRUD operations for documents
+      - Handle and log errors for traceability
+      - Provide a simple, technology-agnostic interface for the application layer
+      - Act as the gateway between application logic and database infrastructure
     """
     
     def __init__(self, database_port: DatabasePort):
         self.db = database_port
-        logger.info("DatabaseService initialized")
+        logger.info("[DatabaseService] initialized")
 
-    # Add documents with validation
+    # Add documents
     def add_docs(self, documents: list[DocumentDTO]):
-        logger.info(f"Adding {len(documents)} documents")
-        
+        logger.debug(f"Adding {len(documents)} documents")
         try:
             valid_docs = [doc for doc in documents if doc.id and doc.text]
        
@@ -47,11 +46,11 @@ class DatabaseService:
             logger.warning("Empty document ID provided")
             return None
             
-        logger.debug(f"Retrieving document with ID: {id}")
+        logger.debug(f"Retrieving document with ID: {doc_id}")
         try:
             return self.db.get_doc_by_id(doc_id)
         except Exception:
-            logger.exception(f"Failed to retrieve document with ID: {id}")
+            logger.exception(f"Failed to retrieve document with ID: {doc_id}")
             raise
 
     # Update existing document
@@ -65,11 +64,11 @@ class DatabaseService:
 
     # Delete document by ID
     def delete_doc(self, doc_id: str):
-        logger.debug(f"Deleting document with ID: {id}")
+        logger.debug(f"Deleting document with ID: {doc_id}")
         try:
-            self.db.delete_doc(id)
+            self.db.delete_doc(doc_id)
         except Exception:
-            logger.exception(f"Failed to delete document with ID: {id}")
+            logger.exception(f"Failed to delete document with ID: {doc_id}")
             raise
     
     # Delete documents by prefix
@@ -78,10 +77,10 @@ class DatabaseService:
             logger.warning("Empty prefix provided for deletion - this would delete all documents")
             raise ValueError("Prefix cannot be empty")
             
-        logger.info(f"Deleting documents with prefix: {prefix}")
+        logger.debug(f"Deleting documents with prefix: {prefix}")
         try:
             self.db.delete_by_prefix(prefix)
-            logger.info(f"Successfully deleted documents with prefix: {prefix}")
+            logger.debug(f"Successfully deleted documents with prefix: {prefix}")
         except Exception:
             logger.exception(f"Failed to delete documents with prefix: {prefix}")
             raise

@@ -16,12 +16,8 @@ class LangchainClient:
     high-level semantic search capabilities with ChromaDB's native CRUD operations. Uses
     HuggingFace's multilingual embedding model for robust text representation and similarity
     matching across different languages.
-    
-    Architecture: Maintains both a LangChain VectorStore instance for semantic operations
-    and a direct ChromaDB client for administrative tasks. Handles document embeddings,
-    persistence, and threshold-based relevance filtering for optimal retrieval quality.
     """
-    
+
     def __init__(self, persist_directory="chroma"):
         try:
             self.persist_directory = persist_directory
@@ -89,22 +85,26 @@ class LangchainClient:
 
     # Search documents using vector similarity
     def search_docs(self, query):
-        results_count = self.results_count
-        threshold = self.threshold
-        logger.debug(f"Searching for top {results_count} documents with query: '{query}' and threshold: {threshold}")
-        results = self.vectorstore.similarity_search_with_score(query, k=results_count)
+        try:
+            results_count = self.results_count
+            threshold = self.threshold
+            logger.debug(f"Searching for top {results_count} documents with query: '{query}' and threshold: {threshold}")
+            results = self.vectorstore.similarity_search_with_score(query, k=results_count)
 
-        docs = []
-        for doc, distance in results:
-            logger.debug(f"Distance: {distance}, ID: {getattr(doc, 'id', None)}")
-            if distance < threshold:
-                id_ = getattr(doc, 'id', None) or doc.metadata.get('id', None) or "unknown"
-                text = getattr(doc, 'page_content', None) or getattr(doc, 'text', None) or doc.metadata.get('text', None) or ""
-                metadata = getattr(doc, 'metadata', None) or {}
-                docs.append((DocumentDTO(id=id_, text=text, metadata=metadata), distance))
+            docs = []
+            for doc, distance in results:
+                logger.debug(f"Distance: {distance}, ID: {getattr(doc, 'id', None)}")
+                if distance < threshold:
+                    id_ = getattr(doc, 'id', None) or doc.metadata.get('id', None) or "unknown"
+                    text = getattr(doc, 'page_content', None) or getattr(doc, 'text', None) or doc.metadata.get('text', None) or ""
+                    metadata = getattr(doc, 'metadata', None) or {}
+                    docs.append((DocumentDTO(id=id_, text=text, metadata=metadata), distance))
 
-        logger.info(f"Found {len(docs)} documents within threshold {threshold}")
-        return docs
+            logger.info(f"Found {len(docs)} documents within threshold {threshold}")
+            return docs
+        except Exception as e:
+            logger.exception(f"Failed to search documents for query '{query}': {e}")
+            raise
 
     # Update document by delete and re-add
     def update_doc(self, id, text, metadata=None):
@@ -144,17 +144,20 @@ class LangchainClient:
 
     # Delete documents by prefix
     def delete_by_prefix(self, prefix: str):
+        try:
+            # Get all document IDs from the collection
+            results = self.collection.get()
+            all_ids = results.get("ids", [])
             
-        # Get all document IDs from the collection
-        results = self.collection.get()
-        all_ids = results.get("ids", [])
+            # Filter IDs that start with the given prefix
+            ids_to_delete = [id_ for id_ in all_ids if id_.startswith(prefix)]
             
-        # Filter IDs that start with the given prefix
-        ids_to_delete = [id_ for id_ in all_ids if id_.startswith(prefix)]
-            
-        if ids_to_delete:
-        # Delete documents with matching prefix
-            self.collection.delete(ids=ids_to_delete)
-            logger.info(f"Deleted {len(ids_to_delete)} documents with prefix '{prefix}'")
-        else:
-            logger.info(f"No documents with prefix '{prefix}' found")
+            if ids_to_delete:
+                # Delete documents with matching prefix
+                self.collection.delete(ids=ids_to_delete)
+                logger.info(f"Deleted {len(ids_to_delete)} documents with prefix '{prefix}'")
+            else:
+                logger.info(f"No documents with prefix '{prefix}' found")
+        except Exception as e:
+            logger.exception(f"Failed to delete documents by prefix '{prefix}': {e}")
+            raise

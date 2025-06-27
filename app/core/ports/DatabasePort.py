@@ -2,25 +2,18 @@ from abc import ABC, abstractmethod
 from typing import List
 from app.core.dtos.DocumentDTO import DocumentDTO
 
+"""
+    Abstract interface for document database operations with CRUD and bulk capabilities:
+    add_docs (bulk insertion), get_doc_by_id (retrieval), update_doc (modification),
+    delete_doc (removal), delete_by_prefix (batch deletion), and clear (full cleanup).
+    
+    Enables flexible database implementation switching (ChromaDB, FAISS, Pinecone, etc.).
+"""
+
 class DatabasePort(ABC):
-    """
-    Abstract interface defining the contract for document database operations in the RAG system.
-    
-    This port establishes the standard CRUD interface for document persistence, enabling flexible
-    database implementation switching (ChromaDB, FAISS, Pinecone, etc.) without affecting the
-    domain layer. Ensures consistent behavior across different vector database implementations.
-    
-    Key operations: bulk document insertion, individual document retrieval and management,
-    and full database cleanup. Supports the complete document lifecycle required for RAG
-    operations while maintaining clean separation between domain logic and persistence concerns.
-    """
     
     @abstractmethod
     def add_docs(self, documents: List[DocumentDTO]):
-        pass
-
-    @abstractmethod
-    def delete_doc(self, id: str):
         pass
 
     @abstractmethod
@@ -32,9 +25,13 @@ class DatabasePort(ABC):
         pass
 
     @abstractmethod
-    def clear(self):
+    def delete_doc(self, id: str):
         pass
 
     @abstractmethod
     def delete_by_prefix(self, prefix: str):
+        pass
+
+    @abstractmethod
+    def clear(self):
         pass
