@@ -141,3 +141,20 @@ class LangchainClient:
             logger.exception("Failed to clear all documents")
             raise
 
+
+    # Delete documents by prefix
+    def delete_by_prefix(self, prefix: str):
+            
+        # Get all document IDs from the collection
+        results = self.collection.get()
+        all_ids = results.get("ids", [])
+            
+        # Filter IDs that start with the given prefix
+        ids_to_delete = [id_ for id_ in all_ids if id_.startswith(prefix)]
+            
+        if ids_to_delete:
+        # Delete documents with matching prefix
+            self.collection.delete(ids=ids_to_delete)
+            logger.info(f"Deleted {len(ids_to_delete)} documents with prefix '{prefix}'")
+        else:
+            logger.info(f"No documents with prefix '{prefix}' found")

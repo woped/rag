@@ -1,4 +1,6 @@
 from app.core.dtos.DocumentDTO import DocumentDTO
+from app.core.dtos.RagDTO import State
+from typing import List, Dict, Any
 import logging
 import os
 
@@ -23,20 +25,65 @@ class ApplicationService:
     # Singleton instance - set in main.py
     application_service = None
     
-    def __init__(self, db_service, rag_service, pdf_service, preprocessing_service, collection):
+    def __init__(self, db_service, rag_service, pdf_service, query_extraction_service):
         self.db_service = db_service
         self.rag_service = rag_service
         self.pdf_service = pdf_service
-        self.preprocessing_service = preprocessing_service
-        self.collection = collection
+        self.query_extraction_service = query_extraction_service
         logger.info("ApplicationService initialized")
 
-    # === PDF Processing Operations ===
+    # === PDF Processing Orchestration ===
     
+    def process_pdf(self, file_path: str, prefix: str) -> None:
+        logger.info(f"Orchestrating PDF processing: {file_path} with prefix: {prefix}")
+        
+        # 1. PDF Service: Load and convert to DocumentDTOs
+        documents = self.pdf_service.load_and_convert_pdf(file_path, prefix)
+        
+        # 2. Database Service: Clean old data with same prefix first
+        logger.debug(f"Cleaning old documents with prefix: {prefix}")
+        self.db_service.delete_by_prefix(prefix)
+        
+        # 3. Database Service: Store new documents
+        self.db_service.add_docs(documents)
+        
+        logger.info(f"Successfully processed PDF: {file_path}, stored {len(documents)} chunks")
+
+    def process_directory(self, pdf_directory: str) -> Dict[str, Any]:
+        logger.info(f"Orchestrating PDF directory processing: {pdf_directory}")
+        
+        # 1. PDF Service: Get all documents from directory
+        results = self.pdf_service.process_directory_to_documents(pdf_directory)
+        
+        # 2. Database Service: Store all documents if any were successfully processed
+        if results["documents"]:
+            # Group documents by prefix for efficient batch operations
+            documents_by_prefix = {}
+            for doc in results["documents"]:
+                prefix = doc.id.rsplit('_', 1)[0]  # Extract prefix from document ID
+                if prefix not in documents_by_prefix:
+                    documents_by_prefix[prefix] = []
+                documents_by_prefix[prefix].append(doc)
+            
+            # Clean and store for each prefix
+            for prefix, documents in documents_by_prefix.items():
+                logger.debug(f"Cleaning old documents with prefix: {prefix}")
+                self.db_service.delete_by_prefix(prefix)
+                self.db_service.add_docs(documents)
+        
+        # Return clean summary (without documents)
+        return {
+            "successful": results["successful"],
+            "failed": results["failed"],
+            "errors": results["errors"]
+        }
+
     # Load and index all PDFs from directory at startup
-    def load_startup_pdfs(self, pdf_directory="PDF"):
+    def load_startup_pdfs(self):
+        pdf_directory = os.environ.get("PDF_DIRECTORY")
         logger.info(f"Starting startup PDF indexing from directory: {pdf_directory}")
-        return self.pdf_service.load_and_index_startup_pdfs(pdf_directory, self.collection)
+        results = self.process_directory(pdf_directory)
+        logger.info(f"PDF indexing complete: {results['successful']} successful, {results['failed']} failed")
 
     # === RAG Operations ===
     
@@ -51,8 +98,8 @@ class ApplicationService:
         if preprocessing_enabled:
             # Preprocessing: Extract semantic content from PNML/BPMN
             logger.debug(f"[RAG PIPELINE] Diagram preprocessing enabled")
-            query = self.preprocessing_service.preprocess(diagram)
-            logger.debug(f"[RAG PIPELINE] RAG search prompt: '{query}'")
+            query = self.query_extraction_service.extract_query(diagram)
+            logger.debug(f"[RAG PIPELINE] RAG search query: '{query[:200]}{'...' if len(query) > 200 else ''}'")
         else:
             # Use diagram as-is for RAG search
             query = diagram
@@ -63,7 +110,7 @@ class ApplicationService:
         context = [dto for dto, _ in results]
         
         # Phase 2: Augment
-        state = {
+        state: State = {
             "prompt": prompt,
             "diagram": diagram,
             "context": context,

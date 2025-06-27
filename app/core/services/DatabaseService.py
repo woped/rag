@@ -72,6 +72,20 @@ class DatabaseService:
             logger.exception(f"Failed to delete document with ID: {id}")
             raise
     
+    # Delete documents by prefix
+    def delete_by_prefix(self, prefix: str):
+        if not prefix or not prefix.strip():
+            logger.warning("Empty prefix provided for deletion - this would delete all documents")
+            raise ValueError("Prefix cannot be empty")
+            
+        logger.info(f"Deleting documents with prefix: {prefix}")
+        try:
+            self.db.delete_by_prefix(prefix)
+            logger.info(f"Successfully deleted documents with prefix: {prefix}")
+        except Exception:
+            logger.exception(f"Failed to delete documents with prefix: {prefix}")
+            raise
+
     # Clear all documents
     def clear(self):
         logger.warning("Clearing all documents from database")

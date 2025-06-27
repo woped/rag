@@ -6,9 +6,9 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-class RAGService(RAGPort):
+class RAGService:
     """
-    Implements the Retrieval-Augmented Generation workflow for the WoPeD system.
+    Service for Retrieval-Augmented Generation operations in the WoPeD system.
     
     This service orchestrates the core RAG operations: document retrieval using semantic similarity
     search and prompt augmentation with retrieved context. Acts as a domain layer service that
@@ -20,9 +20,8 @@ class RAGService(RAGPort):
     proper error handling throughout the RAG pipeline.
     """
 
-    def __init__(self, rag_adapter: RAGPort, db_service=None, llm=None):
+    def __init__(self, rag_adapter: RAGPort):
         self.rag_adapter = rag_adapter
-        self.db_service = db_service
         logger.info("RAGService initialized")
 
     # Retrieve documents using similarity search

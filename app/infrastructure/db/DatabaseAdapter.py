@@ -68,3 +68,12 @@ class DatabaseAdapter(DatabasePort):
         except Exception as e:
             logger.exception("Failed to clear the database")
             raise
+    
+    # Delete documents by prefix
+    def delete_by_prefix(self, prefix: str):
+        logger.info(f"Deleting documents with prefix: {prefix}")
+        try:
+            self.client.delete_by_prefix(prefix)  
+        except Exception as e:
+            logger.exception(f"Failed to delete documents with prefix: {prefix}")
+            raise

@@ -34,3 +34,7 @@ class DatabasePort(ABC):
     @abstractmethod
     def clear(self):
         pass
+
+    @abstractmethod
+    def delete_by_prefix(self, prefix: str):
+        pass
