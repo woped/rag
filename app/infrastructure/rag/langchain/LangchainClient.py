@@ -47,11 +47,19 @@ class LangchainClient:
     def add_docs(self, texts, metadatas=None, ids=None):
         logger.debug(f"Attempting to add {len(texts)} document(s).")
         if metadatas is None:
-            metadatas = [{} for _ in texts]
+            metadatas = [{"source": "unknown"} for _ in texts]
         if ids is None:
             ids = [str(i) for i in range(len(texts))]
 
-        for i, (text, metadata, doc_id) in enumerate(zip(texts, metadatas, ids)):
+        # Ensure non-empty metadata (ChromaDB requirement)
+        processed_metadatas = []
+        for metadata in metadatas:
+            if not metadata or len(metadata) == 0:
+                processed_metadatas.append({"source": "default"})
+            else:
+                processed_metadatas.append(metadata)
+
+        for i, (text, metadata, doc_id) in enumerate(zip(texts, processed_metadatas, ids)):
             try:
                 embedding = self.embeddings.embed_documents([text])
                 self.collection.add(
@@ -74,11 +82,11 @@ class LangchainClient:
                 logger.warning(f"No document found with ID: {id}")
                 return None
             logger.info(f"Document with ID: {id} retrieved successfully")
-            return {
-                "id": result["ids"][0],
-                "text": result["documents"][0],
-                "metadata": result["metadatas"][0]
-            }
+            return DocumentDTO(
+                id=result["ids"][0],
+                text=result["documents"][0],
+                metadata=result["metadatas"][0]
+            )
         except Exception:
             logger.exception(f"Failed to retrieve document with ID: {id}")
             raise
@@ -111,7 +119,10 @@ class LangchainClient:
         logger.info(f"Updating document with ID: {id}")
         try:
             self.delete_doc(id)
-            self.add_docs([text], [metadata or {}], [id])
+            # Ensure non-empty metadata (ChromaDB requirement)
+            if not metadata or len(metadata) == 0:
+                metadata = {"source": "updated"}
+            self.add_docs([text], [metadata], [id])
             logger.info(f"Document with ID: {id} updated successfully")
         except Exception:
             logger.exception(f"Failed to update document with ID: {id}")

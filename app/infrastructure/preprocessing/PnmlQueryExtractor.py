@@ -8,7 +8,9 @@ logger = logging.getLogger(__name__)
 class PnmlQueryExtractor(QueryExtractorPort):
     
     def can_process(self, diagram: str) -> bool:
-        return ("<?xml" in diagram and "<pnml>" in diagram)
+        if not diagram:
+            return False
+        return ("<?xml" in diagram and "<pnml" in diagram)
     
     def get_diagram_type(self) -> str:
         return "PNML"
@@ -50,7 +52,7 @@ class PnmlQueryExtractor(QueryExtractorPort):
     # Check if the text is a meaningful candidate for a process keyword
     def is_meaningful_text(self, text: str) -> bool:
         try:
-            return (text and len(text) > 1 and  # Include p1, t3 etc.
+            return (bool(text) and len(text) > 1 and  # Include p1, t3 etc.
                     not text.isdigit() and 
                     not text.startswith('<') and
                     not re.match(r'^noID$', text) and

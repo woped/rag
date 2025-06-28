@@ -11,6 +11,8 @@ logger = logging.getLogger(__name__)
 class BpmnQueryExtractor(QueryExtractorPort):
     
     def can_process(self, diagram: str) -> bool:
+        if not diagram:
+            return False
         return ("<?xml" in diagram and 
                 ("<bpmn:" in diagram or "<definitions" in diagram))
     
@@ -108,11 +110,20 @@ class BpmnQueryExtractor(QueryExtractorPort):
                 activities = re.findall(pattern, diagram, re.IGNORECASE)
                 for activity in activities:
                     name = activity.strip().lower()
-                    is_valid_name = (name and len(name) > 1 and not name.isdigit())
-                    if is_valid_name and name not in activity_names:
+                    if self.is_valid_name(name) and name not in activity_names:
                         activity_names.append(name)
             
             return activity_names
         except Exception as e:
             logger.exception(f"Failed to extract activities: {e}")
+            raise
+
+    # Check if a name is valid for extraction (not empty, not just digits, meaningful length)
+    def is_valid_name(self, name: str) -> bool:
+        """Check if a name is valid for keyword extraction."""
+        try:
+            return (bool(name) and len(name) > 1 and not name.isdigit() and
+                    not name in ['http', 'www', 'org', 'berlin', 'hu'])
+        except Exception as e:
+            logger.exception(f"Failed to check if name is valid: {e}")
             raise
