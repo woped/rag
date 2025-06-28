@@ -29,6 +29,7 @@ class DatabaseAdapter(DatabasePort):
             ids = [doc.id or None for doc in documents]
             self.client.add_docs(texts, metadatas, ids)
         except Exception as e:
+            logger.exception(f"Failed to add documents: {e}")
             raise
 
     # Get single document by ID
@@ -36,6 +37,7 @@ class DatabaseAdapter(DatabasePort):
         try:
             return self.client.get_doc_by_id(id)
         except Exception as e:
+            logger.exception(f"Failed to get document by ID {id}: {e}")
             raise
     
     # Update existing document
@@ -43,6 +45,7 @@ class DatabaseAdapter(DatabasePort):
         try:
             self.client.update_doc(document.id, document.text, document.metadata)
         except Exception as e:
+            logger.exception(f"Failed to update document ID {document.id}: {e}")
             raise
     
     # Delete document by ID
@@ -50,6 +53,7 @@ class DatabaseAdapter(DatabasePort):
         try:
             self.client.delete_doc(id)
         except Exception as e:
+            logger.exception(f"Failed to delete document ID {id}: {e}")
             raise
     
     # Clear all documents from database
@@ -57,6 +61,7 @@ class DatabaseAdapter(DatabasePort):
         try:
             self.client.clear()
         except Exception as e:
+            logger.exception(f"Failed to clear database: {e}")
             raise
     
     # Delete documents by prefix
@@ -64,4 +69,5 @@ class DatabaseAdapter(DatabasePort):
         try:
             self.client.delete_by_prefix(prefix)  
         except Exception as e:
+            logger.exception(f"Failed to delete by prefix '{prefix}': {e}")
             raise

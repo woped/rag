@@ -1,17 +1,16 @@
 from chromadb import PersistentClient
 from langchain.prompts import ChatPromptTemplate
 
-from ..infrastructure.db.DatabaseAdapter import DatabaseAdapter
-from ..infrastructure.db.PDFLoader import PDFLoader
-from ..infrastructure.rag.RAGAdapter import RAGAdapter
-from ..infrastructure.preprocessing.BpmnQueryExtractor import BpmnQueryExtractor
-from ..infrastructure.preprocessing.PnmlQueryExtractor import PnmlQueryExtractor
-from ..core.services.DatabaseService import DatabaseService
-from ..core.services.RAGService import RAGService
-from ..core.services.PDFService import PDFService
-from ..core.services.QueryExtractionService import QueryExtractionService
-from ..core.ApplicationService import ApplicationService
-
+from app.infrastructure.db.DatabaseAdapter import DatabaseAdapter
+from app.infrastructure.db.PDFLoader import PDFLoader
+from app.infrastructure.rag.RAGAdapter import RAGAdapter
+from app.infrastructure.preprocessing.BpmnQueryExtractor import BpmnQueryExtractor
+from app.infrastructure.preprocessing.PnmlQueryExtractor import PnmlQueryExtractor
+from app.core.services.DatabaseService import DatabaseService
+from app.core.services.RAGService import RAGService
+from app.core.services.PDFService import PDFService
+from app.core.services.QueryExtractionService import QueryExtractionService
+from app.core.ApplicationService import ApplicationService
 
 class ServiceConfig:
     

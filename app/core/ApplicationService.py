@@ -87,7 +87,7 @@ class ApplicationService:
             return
         
         try:
-            logger.info(f"Starting startup PDF indexing from directory: {pdf_directory}")
+            logger.info(f"Starting startup PDF indexing from directory: {pdf_directory} via PDFService")
             documents_by_prefix = self.pdf_service.process_directory(pdf_directory)
             
             successful = 0
@@ -95,9 +95,10 @@ class ApplicationService:
             errors = []
 
             for prefix, documents in documents_by_prefix.items():
-                logger.debug(f"Cleaning old documents with prefix: {prefix}")
+                logger.debug(f"Cleaning old documents with prefix: {prefix} via DBService")
                 self.db_service.delete_by_prefix(prefix)
                 try:
+                    logger.debug(f"Adding new documents via DBService")
                     self.db_service.add_docs(documents)
                     successful += 1
                 except Exception as e:

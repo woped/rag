@@ -31,24 +31,24 @@ class BpmnQueryExtractor(QueryExtractorPort):
             # Add participants with high priority (at beginning)
             for participant in participants:
                 search_keywords.insert(0, participant)
-                logger.debug(f"[BPMN EXTRACTOR] Added participant keyword: '{participant}'")
+                logger.debug(f"Added participant keyword: '{participant}'")
                 
             # Add lanes with high priority (at beginning)
             for lane in lanes:
                 search_keywords.insert(0, lane)
-                logger.debug(f"[BPMN EXTRACTOR] Added lane keyword: '{lane}'")
+                logger.debug(f"Added lane keyword: '{lane}'")
                 
             # Add activities
             for activity in activities:
                 search_keywords.append(activity)
-                logger.debug(f"[BPMN EXTRACTOR] Added activity keyword: '{activity}'")
+                logger.debug(f"Added activity keyword: '{activity}'")
             
-            logger.debug(f"[BPMN EXTRACTOR] Extracted {len(participants)} participants, "
+            logger.debug(f"Extracted {len(participants)} participants, "
                         f"{len(lanes)} lanes, {len(activities)} activities")
             
             return search_keywords
         except Exception as e:
-            logger.exception(f"[BPMN EXTRACTOR] Failed to extract semantic terms: {e}")
+            logger.exception(f"Failed to extract semantic terms: {e}")
             raise
     
     # Extract participant names from the BPMN diagram using regex patterns
@@ -59,10 +59,10 @@ class BpmnQueryExtractor(QueryExtractorPort):
             for pattern in PARTICIPANT_PATTERNS:
                 participants = re.findall(pattern, diagram, re.IGNORECASE)
                 if participants:
-                    logger.debug(f"[BPMN PROCESSOR] Pattern '{pattern}' found {len(participants)} participants")
+                    logger.debug(f"Pattern '{pattern}' found {len(participants)} participants")
                     break
             else:
-                logger.debug("[BPMN PROCESSOR] No participants found")
+                logger.debug("No participants found")
                 return []
             
             for participant in participants:
@@ -72,7 +72,7 @@ class BpmnQueryExtractor(QueryExtractorPort):
                     
             return participant_names
         except Exception as e:
-            logger.exception(f"[BPMN EXTRACTOR] Failed to extract participants: {e}")
+            logger.exception(f"Failed to extract participants: {e}")
             raise
     
     # Extract lane names from the BPMN diagram using regex patterns
@@ -83,10 +83,10 @@ class BpmnQueryExtractor(QueryExtractorPort):
             for pattern in LANE_PATTERNS:
                 lanes = re.findall(pattern, diagram, re.IGNORECASE)
                 if lanes:
-                    logger.debug(f"[BPMN PROCESSOR] Pattern '{pattern}' found {len(lanes)} lanes")
+                    logger.debug(f"Pattern '{pattern}' found {len(lanes)} lanes")
                     break
             else:
-                logger.debug("[BPMN PROCESSOR] No lanes found")
+                logger.debug("No lanes found")
                 return []
             
             for lane in lanes:
@@ -96,7 +96,7 @@ class BpmnQueryExtractor(QueryExtractorPort):
                     
             return lane_names
         except Exception as e:
-            logger.exception(f"[BPMN EXTRACTOR] Failed to extract lanes: {e}")
+            logger.exception(f"Failed to extract lanes: {e}")
             raise
     
     # Extract activity names from the BPMN diagram using regex patterns
@@ -114,5 +114,5 @@ class BpmnQueryExtractor(QueryExtractorPort):
             
             return activity_names
         except Exception as e:
-            logger.exception(f"[BPMN EXTRACTOR] Failed to extract activities: {e}")
+            logger.exception(f"Failed to extract activities: {e}")
             raise

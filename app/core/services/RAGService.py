@@ -26,21 +26,17 @@ class RAGService:
 
     # Retrieve documents using similarity search
     def retrieve(self, query: str) -> List[Tuple[DocumentDTO, float]]:
-        logger.debug("RAGService delegating search to adapter")
+        logger.debug("[RAGService] delegating search to adapter")
         
         if not query.strip():
             logger.warning("Empty query provided")
             return []
         
-        try:
-            return self.rag_adapter.retrieve(query)
-        except Exception as e:
-            logger.error(f"Failed to retrieve documents for query '{query}': {e}")
-            raise
+        return self.rag_adapter.retrieve(query)
 
     # Augment prompt with context documents
     def augment(self, state: State) -> str:
-        logger.debug("RAGService delegating augmentation to adapter")
+        logger.debug("[RAGService] delegating augmentation to adapter")
         
         if not state.get("prompt"):
             raise ValueError("Prompt is required")
@@ -49,11 +45,7 @@ class RAGService:
             logger.warning("No context provided, returning original prompt")
             return state["prompt"]
         
-        try:
-            return self.rag_adapter.augment(state)
-        except Exception as e:
-            logger.error(f"Failed to augment prompt: {e}")
-            raise
+        return self.rag_adapter.augment(state)
 
     # Generate response (placeholder - not used)
     def generate(self, prompt: str, context: List[DocumentDTO]) -> str:

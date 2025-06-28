@@ -23,9 +23,12 @@ def enrich_prompt():
         logger.info(f"Enriched prompt: {enriched_prompt}")
         return jsonify({"enriched_prompt": enriched_prompt}), 200
         
+    except ValueError as e:
+        logger.warning(f"Bad request: {str(e)}")
+        return jsonify({"error": str(e)}), 400
     except Exception as e:
         logger.error(f"RAG failed: {str(e)}")
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Internal server error"}), 500
     
 # ➤ Add documents (POST)
 @rest_bp.route("/rag", methods=["POST"])
@@ -49,8 +52,12 @@ def add_docs():
         ]
         app_service.add_docs(document_dtos)
         return jsonify({"status": "ok"}), 201
+    except ValueError as e:
+        logger.warning(f"Bad request: {str(e)}")
+        return jsonify({"error": str(e)}), 400
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        logger.error(f"Add docs failed: {str(e)}")
+        return jsonify({"error": "Internal server error"}), 500
 
 # ➤ Update a document by ID (PUT)
 @rest_bp.route("/rag/<doc_id>", methods=["PUT"])
@@ -66,8 +73,12 @@ def update_doc(doc_id):
         document = DocumentDTO(id=doc_id, text=text, metadata=metadata)
         app_service.update_doc(document)
         return jsonify({"status": "updated"}), 200
+    except ValueError as e:
+        logger.warning(f"Bad request: {str(e)}")
+        return jsonify({"error": str(e)}), 400
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        logger.error(f"Update failed: {str(e)}")
+        return jsonify({"error": "Internal server error"}), 500
 
 # ➤ Get a document by ID (GET)
 @rest_bp.route("/rag/<doc_id>", methods=["GET"])
@@ -75,8 +86,12 @@ def get_doc_by_id(doc_id):
     try:
         result = app_service.get_doc_by_id(doc_id)
         return jsonify(result), 200
+    except ValueError as e:
+        logger.warning(f"Bad request: {str(e)}")
+        return jsonify({"error": str(e)}), 400
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        logger.error(f"Get doc failed: {str(e)}")
+        return jsonify({"error": "Internal server error"}), 500
 
 # ➤ Similarity search (GET)
 @rest_bp.route('/rag/search', methods=['GET'])
@@ -103,9 +118,12 @@ def search_docs():
             for dto, distance in results
         ]
         return jsonify({"results": response}), 200
+    except ValueError as e:
+        logger.warning(f"Bad request: {str(e)}")
+        return jsonify({"error": str(e)}), 400
     except Exception as e:
         logger.error(f"Error in search: {str(e)}")
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Internal server error"}), 500
 
 
 # ➤ Delete a document by ID (DELETE)
@@ -114,9 +132,13 @@ def delete_doc(doc_id):
     try:
         app_service.delete_doc(doc_id)
         return jsonify({"status": "deleted"}), 200
+    except ValueError as e:
+        logger.warning(f"Bad request: {str(e)}")
+        return jsonify({"error": str(e)}), 400
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
-    
+        logger.error(f"Delete failed: {str(e)}")
+        return jsonify({"error": "Internal server error"}), 500
+
 # ➤ Clear the database (POST)
 @rest_bp.route("/rag/clear", methods=["POST"])
 def clear_collection():
@@ -124,9 +146,8 @@ def clear_collection():
         app_service.clear_docs()
         return jsonify({"status": "cleared"}), 200
     except Exception as e:
-        import traceback
-        traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        logger.error(f"Clear failed: {str(e)}")
+        return jsonify({"error": "Internal server error"}), 500
 
 # ➤ Upload PDF and add to database (POST)
 @rest_bp.route("/rag/upload_pdf", methods=["POST"])
@@ -142,17 +163,22 @@ def upload_pdf():
     try:
         app_service.upload_and_index_pdf(tmp.name, os.path.basename(tmp.name).replace(".pdf", ""))
         return jsonify({"status": "PDF processed and added"}), 201
+    except ValueError as e:
+        logger.warning(f"Bad request: {str(e)}")
+        return jsonify({"error": str(e)}), 400
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        logger.error(f"Upload PDF failed: {str(e)}")
+        return jsonify({"error": "Internal server error"}), 500
 
 # ➤ Debug: Dump all document IDs (GET)
 @rest_bp.route("/rag/debug_dump", methods=["GET"])
 def debug_dump():
     try:
-        adapter = app_service.db_service.db  # Access the adapter (DatabasePort)
-        client = adapter.client  # Access the LangchainClient
+        adapter = app_service.db_service.db
+        client = adapter.client
         ids = client.collection.get()["ids"]
         return jsonify({"count": len(ids), "ids": ids}), 200
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        logger.error(f"Debug dump failed: {str(e)}")
+        return jsonify({"error": "Internal server error"}), 500
 

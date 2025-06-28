@@ -21,7 +21,7 @@ class LangchainClient:
     def __init__(self, persist_directory="chroma"):
         try:
             self.persist_directory = persist_directory
-            logger.info(f"LangchainClient initialised with Persist-directory: {self.persist_directory}")
+            logger.info(f"[LangchainClient] initialised with Persist-directory: {self.persist_directory}")
 
             self.threshold = int(os.environ.get("THRESHOLD"))
             self.results_count = int(os.environ.get("RESULTS_COUNT"))
@@ -40,12 +40,12 @@ class LangchainClient:
             self.collection = self.client.get_or_create_collection(name="rag_collection")
             
         except Exception as e:
-            logger.error(f"Failed to initialize LangchainClient: {e}")
+            logger.exception(f"Failed to initialize LangchainClient: {e}")
             raise
 
     # Add multiple documents with embeddings
     def add_docs(self, texts, metadatas=None, ids=None):
-        logger.debug(f"add_docs called with {len(texts)} document(s).")
+        logger.debug(f"Attempting to add {len(texts)} document(s).")
         if metadatas is None:
             metadatas = [{} for _ in texts]
         if ids is None:
@@ -62,7 +62,7 @@ class LangchainClient:
                 )
                 logger.debug(f"Added document ID {doc_id} successfully.")
             except Exception as e:
-                logger.error(f"Error while adding document ID {doc_id} at index {i}: {e}", exc_info=True)
+                logger.exception(f"Error while adding document ID {doc_id} at index {i}: {e}")
                 raise
 
     # Get single document by ID
@@ -155,7 +155,7 @@ class LangchainClient:
             if ids_to_delete:
                 # Delete documents with matching prefix
                 self.collection.delete(ids=ids_to_delete)
-                logger.info(f"Deleted {len(ids_to_delete)} documents with prefix '{prefix}'")
+                logger.debug(f"Successfully deleted {len(ids_to_delete)} documents with prefix '{prefix}'")
             else:
                 logger.info(f"No documents with prefix '{prefix}' found")
         except Exception as e:
