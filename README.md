@@ -24,7 +24,7 @@ This project is a modular, testable Retrieval-Augmented Generation (RAG) API bui
 
 - Python 3.10+
 - pip
-- (Optional) Docker
+- (Optional) Docker/Podman
 - OpenAI API Key (or compatible LLM provider)
 
 ---
@@ -57,12 +57,12 @@ python main.py
 
 5. **Run using Docker (alternative)**
 
-`docker build -t rag-api .`
+`docker build -t rag-api .` or `podman build -t rag-api .`
 
-`docker run -p 5000:5000 rag-api`
+`docker run -p 5000:5000 rag-api` or `podman run -p 5000:5000 rag-api`
 
 5. **Run with Logging**<br>
-The default logging is set to `warning` and will be active automatically when starting the application.<br>
+The default logging is set to `warning` and will be active automatically when starting the application. The default can be changed by setting the `LOG_LEVEL` environment variable in `config.env`.<br>
 
    **Flask**<br>
    `python main.py --loglevel <level>`<br>
@@ -80,24 +80,88 @@ The default logging is set to `warning` and will be active automatically when st
 
 ## 🧱 Architecture Overview
 
-This project follows a **hexagonal architecture** pattern for a clean, testable, and maintainable Retrieval-Augmented Generation (RAG) API. Key layers include:
+This project follows a **hexagonal architecture** pattern for a clean, testable, and maintainable Retrieval-Augmented Generation (RAG) API.
 
-### 🔹 Core
-- `ports/`: Define abstract interfaces for database and RAG services.
-- `services/`: Use cases that orchestrate logic across ports.
+### 🎯 ApplicationService - Central Entry Point
 
-### 🔹 Infrastructure
-- `db/`: Contains concrete adapters for database interactions (e.g., Chroma vector DB).
-- `rag/`: Uses LangChain to implement the RAG pipeline.
+The **`ApplicationService`** is the **main entry point** and orchestrator of the entire system:
+- **Technology-agnostic**: Contains only business logic, no infrastructure dependencies
+- **Coordinates workflows**: PDF processing, RAG pipeline, document management
+- **Delegates to domain services**: Each service handles specific business concerns
+- **Singleton pattern**: Centralized access point configured in `main.py`
 
-### 🔹 Presentation
-- `controller/`: Exposes the API via Flask (`RESTController.py`).
+### 🏗️ Architecture Layers
+
+#### 🔹 Core Layer
+- **`ApplicationService.py`**: Main business orchestrator and entry point
+- **`ports/`**: Abstract interfaces (DatabasePort, RAGPort, PDFLoaderPort, QueryExtractorPort)
+- **`services/`**: Business logic services that handle success logging
+  - `DatabaseService`: Document CRUD operations
+  - `RAGService`: Retrieval & augmentation pipeline  
+  - `PDFService`: Document processing workflows
+  - `QueryExtractionService`: Diagram preprocessing logic
+
+#### 🔹 Infrastructure Layer
+Infrastructure adapters handle **technical implementation** and **detailed error handling**:
+- **`db/`**: 
+  - `DatabaseAdapter`: ChromaDB integration via LangChainClient
+  - `PDFLoader`: Document parsing and chunking
+- **`rag/`**: 
+  - `RAGAdapter`: RAG pipeline implementation using LangChain
+  - `LangchainClient`: LangChain vector operations
+- **`preprocessing/`**: 
+  - `BpmnQueryExtractor`: BPMN diagram processing
+  - `PnmlQueryExtractor`: PNML diagram processing
+
+#### 🔹 Presentation Layer
+- **`controller/`**: REST API endpoints via Flask (`RESTController.py`)
+
+### 🧠 Diagram Preprocessing Feature
+
+**Key Feature**: Improves RAG search quality by extracting meaningful business terms from BPMN/PNML diagrams.
+
+**How it works**:
+1. **Detection**: Automatically detects diagram format (BPMN vs PNML)
+2. **Extraction**: Extracts business-relevant text (activity names, events, etc.)
+3. **Technical Filtering**: Removes technical IDs (`task_12j0pib`, `p1`, `t3`, etc.)
+4. **Structural Filtering**: Removes tool/system terms (`woped`, `designer`, `start`, `end`, etc.)
+
+**Configuration**: Set `ENABLE_DIAGRAM_PREPROCESSING=true/false` in `config.env`
+
+### ⚙️ Configuration Management
+
+The system is highly configurable through environment variables in `config.env`:
+- **Database settings**: ChromaDB persist directory configuration
+- **ChromaDB settings**: Telemetry, connection parameters
+- **Document processing**: Chunk size, overlap, PDF directory
+- **RAG pipeline**: Similarity threshold, result count, embedding model
+- **Diagram preprocessing**: Enable/disable semantic extraction
+- **Server configuration**: Host, port settings
+- **Logging**: Log level configuration
+
+See `config.env` for all available configuration options.
+
+### 🧪 Comprehensive Test Coverage
+
+**108 total tests** ensuring system reliability:
+
+#### Unit Tests (`tests/unit/`)
+- **Services**: Business logic testing (database, RAG, PDF, query extraction)
+- **Adapters**: Infrastructure testing (LangChain, extractors, loaders)  
+- **Presentation**: API endpoint validation
+
+#### Integration Tests (`tests/integration/`)
+- **End-to-End workflows**: Complete RAG pipeline, diagram preprocessing, PDF ingestion
 
 ### 🧩 Technologies Used
-- **Flask** for API exposure
-- **LangChain** for RAG orchestration
-- **Chroma** as a vector store
-- **Hexagonal Architecture** for clean separation of concerns
+- **Flask** for REST API exposure and web server
+- **LangChain** for RAG orchestration and document processing
+- **ChromaDB** as vector database for semantic search
+- **HuggingFace Transformers** for embedding models and AI/ML components
+- **xml.etree.ElementTree** (Python standard library) for BPMN/PNML XML parsing
+- **PyPDF** for PDF document processing and text extraction
+- **pytest** for comprehensive unit and integration testing
+- **Hexagonal Architecture** for clean separation of concerns and testability
 
 
 ## Branching & Commit: Process in VS Code

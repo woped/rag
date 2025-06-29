@@ -11,6 +11,7 @@ from app.core.dtos.DocumentDTO import DocumentDTO
 logger = logging.getLogger(__name__)
 
 class PDFLoader(PDFLoaderPort):
+    
     def __init__(self):
         try:
             # Download required NLTK resources

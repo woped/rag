@@ -1,7 +1,6 @@
 from langchain_chroma import Chroma
 from langchain_huggingface import HuggingFaceEmbeddings
 from chromadb import PersistentClient
-from langchain_core.documents import Document
 from app.core.dtos.DocumentDTO import DocumentDTO
 import logging
 import os
@@ -18,10 +17,11 @@ class LangchainClient:
     matching across different languages.
     """
 
-    def __init__(self, persist_directory="chroma"):
+    def __init__(self):
         try:
-            self.persist_directory = persist_directory
-            logger.info(f"[LangchainClient] initialised with Persist-directory: {self.persist_directory}")
+            # Get persist directory from environment variable
+            self.persist_directory = os.getenv("DB_PATH", "chroma")
+            logger.info(f"[LangchainClient] initialized with persist_directory: {self.persist_directory}")
 
             self.threshold = float(os.environ.get("THRESHOLD"))
             self.results_count = int(os.environ.get("RESULTS_COUNT"))

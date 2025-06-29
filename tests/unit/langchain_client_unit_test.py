@@ -31,7 +31,8 @@ class TestLangchainClient:
         with patch.dict(os.environ, {
             "THRESHOLD": "0.5",
             "RESULTS_COUNT": "5", 
-            "EMBEDDING_MODEL": "test-model"
+            "EMBEDDING_MODEL": "test-model",
+            "DB_PATH": "test_chroma"
         }):
             with patch('app.infrastructure.rag.langchain.LangchainClient.HuggingFaceEmbeddings') as mock_hf:
                 with patch('app.infrastructure.rag.langchain.LangchainClient.Chroma') as mock_chroma:
@@ -41,7 +42,7 @@ class TestLangchainClient:
                         mock_persistent.return_value = mock_client
                         mock_client.get_or_create_collection.return_value = mock_collection
                         
-                        client = LangchainClient("test_chroma")
+                        client = LangchainClient()
                         client.embeddings = mock_embeddings
                         client.vectorstore = mock_vectorstore
                         client.collection = mock_collection

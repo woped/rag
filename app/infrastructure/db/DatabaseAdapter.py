@@ -11,15 +11,11 @@ class DatabaseAdapter(DatabasePort):
     This adapter implements the technical database operations, providing a concrete implementation
     of the DatabasePort interface. Handles all CRUD operations by delegating to the LangchainClient
     which manages the actual ChromaDB vector database interactions and document storage.
-    
-    Key operations: document storage and retrieval, metadata management, bulk operations,
-    and database cleanup. Serves as the persistence layer bridge between domain services
-    and the ChromaDB vector database infrastructure.
     """
     
     def __init__(self):
         self.client = LangchainClient()
-        logger.info("DatabaseAdapter initialized with LangchainClient")
+        logger.info("[DatabaseAdapter] initialized with LangchainClient")
 
     # Add multiple documents to database
     def add_docs(self, documents):
