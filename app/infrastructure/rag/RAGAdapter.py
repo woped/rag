@@ -21,21 +21,23 @@ class RAGAdapter(RAGPort):
     the domain layer's RAG abstractions and the actual vector database infrastructure.
     """
     
-    def __init__(self, prompt_template=None):
+    def __init__(self, prompt_template):
         self.langchain_client = LangchainClient()
         self.prompt_template = prompt_template
-        logger.info("RAGAdapter initialized")
+        logger.info("[RAGAdapter] initialized")
 
     # Search documents using vector similarity
     def retrieve(self, query: str) -> List[Tuple[DocumentDTO, float]]:
-        logger.info(f"Searching documents for: {query[:50]}...")
-        results = self.langchain_client.search_docs(query)
-        logger.info(f"Found {len(results)} documents")
-        return results
+        try:
+            results = self.langchain_client.search_docs(query)
+            logger.info("Successfully retrieved documents for query: %s", query[:50])
+            return results
+        except Exception as e:
+            logger.exception(f"Failed to retrieve documents for query: {query[:50]}...: {e}")
+            raise
 
     # Add context documents to prompt
     def augment(self, state: State) -> str:
-        logger.info("Adding context to prompt")
         
         # Format context documents
         context_text = ""
@@ -45,8 +47,8 @@ class RAGAdapter(RAGPort):
                 context_blocks.append(f"[Document {i}]\n{doc.text}")
             context_text = "\n\n".join(context_blocks)
         
-         # Get additional instruction from environment
-        additional_llm_instruction = os.getenv("ADDITIONAL_LLM_INSTRUCTION", "")
+        # Get additional instruction from environment
+        additional_llm_instruction = os.getenv("ADDITIONAL_LLM_INSTRUCTION")
         
         # Use template or simple format
         if self.prompt_template:
@@ -57,15 +59,14 @@ class RAGAdapter(RAGPort):
                     context=context_text
                 )
             except Exception as e:
-                logger.warning(f"Template failed: {e}")
+                logger.warning(f"Template failed: {e} - using fallback format")
                 enriched_prompt = f"{state['prompt']}\n\n{additional_llm_instruction}\n\nContext:\n{context_text}"
         else:
             enriched_prompt = f"{state['prompt']}\n\n{additional_llm_instruction}\n\nContext:\n{context_text}"
 
-        logger.info("Prompt augmentation completed")
+        logger.info("Successfully enriched prompt with context")
         return enriched_prompt
 
     # Generate response (placeholder - not used)
     def generate(self, prompt: str, context: List[DocumentDTO]) -> str:
-        logger.info("Generate called - handled by external P2T service")
         return prompt

@@ -1,162 +1,141 @@
 from app.core.dtos.DocumentDTO import DocumentDTO
+from app.core.dtos.RagDTO import State
+from typing import List, Dict, Any
 import logging
-import glob
 import os
 
 logger = logging.getLogger(__name__)
 
 class ApplicationService:
     """
-    Main orchestrator for PDF processing and RAG operations in the WoPeD integration system.
-    
-    This service coordinates complex workflows between multiple domain services and infrastructure components.
-    It serves as the primary entry point for REST controllers and handles the complete lifecycle of 
-    document processing - from PDF upload and indexing to intelligent document retrieval and prompt enrichment.
-    
-    Key responsibilities include PDF processing pipelines, RAG query orchestration, document CRUD operations,
-    and system initialization. Implements application-level business logic while delegating technical concerns
-    to specialized services (DatabaseService for persistence, RAGService for retrieval/augmentation).
-    
-    Architecture: Application layer service that acts as a facade over domain services, providing
-    simplified interfaces for complex multi-step workflows and maintaining system state consistency.
+    Central application service in a hexagonal architecture for the WoPeD RAG system.
+
+    Delegates business workflows to domain services, which in turn interact with infrastructure adapters.
+    Main responsibilities:
+      - Coordinates PDF ingestion, conversion, and indexing (single and batch)
+      - Executes the Retrieval-Augmented Generation (RAG) pipeline
+      - Provides document CRUD operations
+      - Handles system startup routines
+
+    This service is technology-agnostic and contains no direct adapter logic.
     """
-    
+
     # Singleton instance - set in main.py
     application_service = None
     
-    def __init__(self, pdf_loader, db_service, rag_service, collection):
-        self.pdf_loader = pdf_loader
+    def __init__(self, db_service, rag_service, pdf_service, query_extraction_service):
         self.db_service = db_service
         self.rag_service = rag_service
-        self.collection = collection
+        self.pdf_service = pdf_service
+        self.query_extraction_service = query_extraction_service
         logger.info("ApplicationService initialized")
-
-    # === PDF Processing Operations ===
-    
-    # Load, split and store PDF in database
-    def upload_and_index_pdf(self, pdf_path: str, prefix: str):
-        logger.info(f"Starting upload and indexing of '{pdf_path}' with prefix '{prefix}'")
-        self.delete_old_docs_by_prefix(prefix)
-    
-        try:
-            chunks = self.pdf_loader.load_and_split(pdf_path)
-            logger.debug(f"Loaded {len(chunks)} chunks from PDF")
-        except Exception as e:
-            logger.error(f"Error while loading PDF '{pdf_path}': {e}")
-            raise
-
-        texts = [c.page_content for c in chunks]
-        metadatas = [c.metadata for c in chunks]
-        ids = [f"{prefix}_{i}" for i in range(len(texts))]
-    
-        try:
-            self.db_service.add_docs([
-            DocumentDTO(id=i, text=t, metadata=m)
-            for i, t, m in zip(ids, texts, metadatas)
-            ])
-            logger.info(f"Successfully stored {len(texts)} chunks from '{pdf_path}'")
-        except Exception as e:
-            logger.error(f"Error while storing chunks for '{pdf_path}': {e}")
-            raise
-
-    # Load and index all PDFs from directory at startup
-    def load_and_index_startup_pdfs(self, pdf_directory="PDF"):
-        pdf_pattern = os.path.join(pdf_directory, "*.pdf")
-        pdf_files = glob.glob(pdf_pattern)
-        
-        results = {
-            "total_found": len(pdf_files),
-            "successfully_indexed": 0,
-            "failed": 0,
-            "errors": []
-        }
-        
-        if not pdf_files:
-            logger.info(f"No PDF files found in {pdf_directory}/ directory")
-            return results
-            
-        logger.info(f"Found {len(pdf_files)} PDF files to index in {pdf_directory}/")
-        
-        for pdf_path in pdf_files:
-            logger.info(f"Loading PDF: {pdf_path}")
-            filename_prefix = os.path.basename(pdf_path).replace(".pdf", "")
-            
-            try:
-                self.upload_and_index_pdf(pdf_path, filename_prefix)
-                logger.info(f"Successfully indexed: {pdf_path}")
-                results["successfully_indexed"] += 1
-                
-            except Exception as e:
-                error_msg = f"Failed to index {pdf_path}: {str(e)}"
-                logger.error(error_msg)
-                results["failed"] += 1
-                results["errors"].append(error_msg)
-        
-        logger.info(f"PDF indexing complete: {results['successfully_indexed']} successful, {results['failed']} failed")
-        return results
-    
-    # Delete documents by ID prefix
-    def delete_old_docs_by_prefix(self, prefix):
-        results = self.collection.get()
-        all_ids = results.get("ids", [])
-        ids_to_delete = [id_ for id_ in all_ids if id_.startswith(prefix)]
-        if ids_to_delete:
-            self.collection.delete(ids=ids_to_delete)
-            logger.info(f"-> Deleted {len(ids_to_delete)} old chunks with prefix '{prefix}'")
-        else:
-            logger.info(f"-> No old chunks with prefix '{prefix}' found")
 
     # === RAG Operations ===
     
-    # Complete RAG pipeline: retrieve -> augment -> return enriched prompt
-    def process_rag_request(self, prompt: str, question: str) -> str:
+    # Complete RAG pipeline: (preprocess) -> retrieve -> augment -> return enriched prompt
+    def process_rag_request(self, prompt: str, diagram: str) -> str:
         logger.info("[RAG PIPELINE] Starting RAG workflow")
-        # Phase 1: Retrieve
-        results = self.rag_service.retrieve(question)
-        context = [dto for dto, _ in results]
         
-        # Phase 2: Augment
-        state = {
-            "prompt": prompt,
-            "question": question,
-            "context": context,
-            "answer": ""  # Not used
-        }
-        enriched_prompt = self.rag_service.augment(state)
+        try:
+            # Check if diagram preprocessing is enabled
+            preprocessing_enabled = os.getenv("ENABLE_DIAGRAM_PREPROCESSING", "false").lower() == "true"
+            logger.debug(f"[RAG PIPELINE] Original diagram: {diagram}")
+            
+            # Phase 1: Preprocessing
+            if preprocessing_enabled:
+                logger.debug(f"[RAG PIPELINE] Diagram preprocessing enabled")
+                try:
+                    query = self.query_extraction_service.extract_query(diagram)
+                    logger.debug(f"[RAG PIPELINE] RAG search query: '{query[:200]}{'...' if len(query) > 200 else ''}'")
+                except Exception as e:
+                    logger.error(f"[RAG PIPELINE] Query extraction failed, using original diagram: {e}")
+                    query = diagram
+            else:
+                query = diagram
+                logger.debug(f"[RAG PIPELINE] Diagram preprocessing disabled - using original diagram")
+            
+            # Phase 2: Retrieve
+            results = self.rag_service.retrieve(query)
+            context = [dto for dto, _ in results] if results else []
+            
+            # Phase 3: Augment
+            state: State = {
+                "prompt": prompt,
+                "diagram": diagram,
+                "context": context,
+                "answer": ""  # Answer will be generated through P2T service, not used here
+            }
+            enriched_prompt = self.rag_service.augment(state)
 
-        logger.info("[RAG PIPELINE] Workflow completed successfully")
-        return enriched_prompt
+            logger.info("[RAG PIPELINE] Workflow completed successfully")
+            return enriched_prompt
+            
+        except Exception as e:
+            logger.exception(f"[RAG PIPELINE] Pipeline failed: {e}")
 
     # Search documents using RAG service
     def search_docs(self, query):
-        logger.info(f"Searching documents with query: '{query}' via ApplicationService")
         return self.rag_service.retrieve(query)
+    
+    # === PDF Processing Orchestration ===
+
+    # Load and index all PDFs from directory at startup
+    def load_startup_pdfs(self):
+        pdf_directory = os.environ.get("PDF_DIRECTORY")
+        if not pdf_directory:
+            logger.warning("PDF_DIRECTORY environment variable not set - skipping startup PDF indexing")
+            return
+        
+        try:
+            logger.info(f"Starting startup PDF indexing from directory: {pdf_directory} via PDFService")
+            documents_by_prefix = self.pdf_service.process_directory(pdf_directory)
+            
+            successful = 0
+            failed = 0
+            errors = []
+
+            for prefix, documents in documents_by_prefix.items():
+                logger.debug(f"Cleaning old documents with prefix: {prefix} via DBService")
+                self.db_service.delete_by_prefix(prefix)
+                try:
+                    logger.debug(f"Adding new documents via DBService")
+                    self.db_service.add_docs(documents)
+                    successful += 1
+                except Exception as e:
+                    logger.error(f"Error while adding documents for prefix {prefix}: {e}")
+                    failed += 1
+                    errors.append(f"{prefix}: {str(e)}")
+
+            logger.info(f"PDF indexing complete: {successful} successful, {failed} failed")
+            if errors:
+                logger.warning(f"PDF indexing completed with errors: {errors}")
+        except Exception as e:
+            logger.exception(f"Startup PDF indexing failed: {e}")
+    
+    # Upload and index a single PDF file with a specific prefix
+    def upload_and_index_pdf(self, file_path: str, prefix: str):
+        logger.info(f"Uploading and indexing PDF: {file_path} with prefix: {prefix}")
+        try:
+            documents = self.pdf_service.load_and_convert_pdf(file_path, prefix)
+            self.db_service.delete_by_prefix(prefix)
+            self.db_service.add_docs(documents)
+            logger.info(f"PDF {file_path} indexed successfully with prefix {prefix}")
+        except Exception as e:
+            logger.exception(f"Failed to upload and index PDF {file_path}: {e}")
 
     # === Document CRUD Operations ===
     
-    # Add documents to database
     def add_docs(self, documents):
-        logger.info(f"Adding {len(documents)} documents via ApplicationService")
         return self.db_service.add_docs(documents)
 
-    # Get document by ID
     def get_doc_by_id(self, doc_id):
-        logger.debug(f"Retrieving document with ID: {doc_id} via ApplicationService")
         return self.db_service.get_doc_by_id(doc_id)
 
-    # Update existing document
     def update_doc(self, document):
-        logger.debug(f"Updating document with ID: {document.id} via ApplicationService")
         return self.db_service.update_doc(document)
 
-    # Delete document by ID
     def delete_doc(self, doc_id):
-        logger.debug(f"Deleting document with ID: {doc_id} via ApplicationService")
         return self.db_service.delete_doc(doc_id)
 
-    # Clear all documents
     def clear_docs(self):
-        logger.warning("Clearing all documents via ApplicationService")
         return self.db_service.clear()
-
-

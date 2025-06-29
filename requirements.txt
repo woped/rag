@@ -1,13 +1,32 @@
-chromadb
-python-dotenv
+# Core Web Framework
 flask
+
+# Configuration Management
+python-dotenv
+argparse
+
+# RAG & LangChain Framework
 langchain
 langchain-chroma
 langchain-huggingface
 langchain-community
-pytest
-pypdf
-requests
+
+# Vector Database
+chromadb
+
+# AI & Machine Learning
+transformers
+torch
 sentence-transformers
+
+# Natural Language Processing
 nltk
-argparse
+
+# Document Processing
+pypdf
+
+# HTTP Requests
+requests
+
+# Testing Framework
+pytest
