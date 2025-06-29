@@ -24,15 +24,18 @@ class TestQueryExtractionService:
         mock_pnml_extractor.can_process.return_value = True
         mock_bpmn_extractor.can_process.return_value = False
         mock_pnml_extractor.get_diagram_type.return_value = "PNML"
-        mock_pnml_extractor.extract_semantic_terms.return_value = ["loan application process"]
+        mock_pnml_extractor.extract_terms.return_value = ["Loan Application", "p1", "t2"]
+        mock_pnml_extractor.filter_technical_terms.return_value = ["loan application"]
+        mock_pnml_extractor.filter_structural_terms.return_value = ["loan application"]
         
         result = query_service.extract_query(pnml_xml)
         
-        assert result == "loan application process"
+        assert result == "loan application"
         mock_pnml_extractor.can_process.assert_called_once_with(pnml_xml)
-        mock_pnml_extractor.extract_semantic_terms.assert_called_once_with(pnml_xml)
-        mock_bpmn_extractor.extract_query.assert_not_called()
-    
+        mock_pnml_extractor.extract_terms.assert_called_once_with(pnml_xml)
+        mock_pnml_extractor.filter_technical_terms.assert_called_once()
+        mock_pnml_extractor.filter_structural_terms.assert_called_once()
+
     # Test that extract_query processes BPMN diagrams correctly
     def test_extract_query_bpmn_diagram(self, query_service, mock_pnml_extractor, mock_bpmn_extractor):
         bpmn_xml = '<?xml version="1.0"?><definitions><process><task name="approve loan"/></process></definitions>'
@@ -40,14 +43,17 @@ class TestQueryExtractionService:
         mock_pnml_extractor.can_process.return_value = False
         mock_bpmn_extractor.can_process.return_value = True
         mock_bpmn_extractor.get_diagram_type.return_value = "BPMN"
-        mock_bpmn_extractor.extract_semantic_terms.return_value = ["approve loan workflow"]
+        mock_bpmn_extractor.extract_terms.return_value = ["Approve Loan", "task_123", "Start"]
+        mock_bpmn_extractor.filter_technical_terms.return_value = ["approve loan", "start"]
+        mock_bpmn_extractor.filter_structural_terms.return_value = ["approve loan"]
         
         result = query_service.extract_query(bpmn_xml)
         
-        assert result == "approve loan workflow"
+        assert result == "approve loan"
         mock_bpmn_extractor.can_process.assert_called_once_with(bpmn_xml)
-        mock_bpmn_extractor.extract_semantic_terms.assert_called_once_with(bpmn_xml)
-        mock_pnml_extractor.extract_query.assert_not_called()
+        mock_bpmn_extractor.extract_terms.assert_called_once_with(bpmn_xml)
+        mock_bpmn_extractor.filter_technical_terms.assert_called_once()
+        mock_bpmn_extractor.filter_structural_terms.assert_called_once()
     
     # Test that extract_query returns original input for non-XML diagrams
     def test_extract_query_unknown_format_returns_original(self, query_service, mock_pnml_extractor, mock_bpmn_extractor):
@@ -59,8 +65,6 @@ class TestQueryExtractionService:
         result = query_service.extract_query(unknown_xml)
         
         assert result == unknown_xml
-        mock_pnml_extractor.extract_query.assert_not_called()
-        mock_bpmn_extractor.extract_query.assert_not_called()
     
     # Test that extract_query returns original input for empty input
     def test_extract_query_empty_input(self, query_service):

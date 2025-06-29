@@ -18,6 +18,13 @@ class QueryExtractorPort(ABC):
         pass
 
     @abstractmethod
-    def extract_semantic_terms(self, diagram: str) -> List[str]:
+    def extract_terms(self, diagram: str) -> List[str]:
         pass
-    
+    @abstractmethod
+    def filter_technical_terms(self, text_matches: List[str]) -> List[str]:
+        pass
+
+    @abstractmethod
+    def filter_structural_terms(self, keywords: List[str]) -> List[str]:
+        pass
+

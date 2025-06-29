@@ -1,12 +1,10 @@
 import logging
 import re
+import xml.etree.ElementTree as ET
 from typing import List
 from app.core.ports.QueryExtractorPort import QueryExtractorPort
-from .bpmn_patterns import PARTICIPANT_PATTERNS, LANE_PATTERNS, ACTIVITY_PATTERNS
-
 
 logger = logging.getLogger(__name__)
-
 
 class BpmnQueryExtractor(QueryExtractorPort):
     
@@ -19,111 +17,72 @@ class BpmnQueryExtractor(QueryExtractorPort):
     def get_diagram_type(self) -> str:
         return "BPMN"
     
-    def extract_semantic_terms(self, diagram: str) -> List[str]:
-        logger.debug("[BPMN EXTRACTOR] Extracting keywords from BPMN diagram")
-        
-        search_keywords = []
-        
-        try: 
-            # Extract BPMN-specific business context for search
-            participants = self.extract_participants(diagram)
-            lanes = self.extract_lanes(diagram)
-            activities = self.extract_activities(diagram)
+    def extract_terms(self, diagram: str) -> List[str]:
+        logger.debug("[BPMN EXTRACTOR] Extracting text elements from BPMN diagram")
+        try:
+            # Parse XML with ElementTree
+            root = ET.fromstring(diagram)
             
-            # Add participants with high priority (at beginning)
-            for participant in participants:
-                search_keywords.insert(0, participant)
-                logger.debug(f"Added participant keyword: '{participant}'")
-                
-            # Add lanes with high priority (at beginning)
-            for lane in lanes:
-                search_keywords.insert(0, lane)
-                logger.debug(f"Added lane keyword: '{lane}'")
-                
-            # Add activities
-            for activity in activities:
-                search_keywords.append(activity)
-                logger.debug(f"Added activity keyword: '{activity}'")
+            # Extract all text elements from BPMN
+            text_elements = []
             
-            logger.debug(f"Extracted {len(participants)} participants, "
-                        f"{len(lanes)} lanes, {len(activities)} activities")
+            # Find all elements with name attributes
+            for elem in root.iter():
+                name = elem.get('name', '').strip()
+                if name:
+                    text_elements.append(name)
             
-            return search_keywords
+            logger.debug(f"[BPMN EXTRACTOR] Extracted {len(text_elements)} text elements")
+            return text_elements
+            
+        except ET.ParseError as e:
+            logger.error(f"[BPMN EXTRACTOR] Invalid XML format: {e}")
+            return []
         except Exception as e:
-            logger.exception(f"Failed to extract semantic terms: {e}")
+            logger.exception(f"[BPMN EXTRACTOR] Failed to extract semantic terms: {e}")
             raise
     
-    # Extract participant names from the BPMN diagram using regex patterns
-    def extract_participants(self, diagram: str) -> List[str]:
+    # Filter out technical terms that are not relevant for search (e.g., IDs, sequence flows)
+    def filter_technical_terms(self, text_matches: List[str]) -> List[str]:
         try:
-            participant_names = []
+            semantic_terms = []
+            for text in text_matches:
+                cleaned_text = text.strip().lower()
 
-            for pattern in PARTICIPANT_PATTERNS:
-                participants = re.findall(pattern, diagram, re.IGNORECASE)
-                if participants:
-                    logger.debug(f"Pattern '{pattern}' found {len(participants)} participants")
-                    break
-            else:
-                logger.debug("No participants found")
-                return []
-            
-            for participant in participants:
-                name = participant.strip().lower()
-                if self.is_valid_name(name):
-                    participant_names.append(name)
+                # Check if text is valid BPMN business term (filter only technical IDs)
+                if (bool(cleaned_text) and len(cleaned_text) > 1 and
+                    not cleaned_text.isdigit() and 
+                    not cleaned_text.startswith('<') and
+                    not re.match(r'^[a-z]+_[a-z0-9]+$', cleaned_text) and  # Skip task_12j0pib
+                    not 'sequenceflow' in cleaned_text):
                     
-            return participant_names
-        except Exception as e:
-            logger.exception(f"Failed to extract participants: {e}")
-            raise
-    
-    # Extract lane names from the BPMN diagram using regex patterns
-    def extract_lanes(self, diagram: str) -> List[str]:
-        try:
-            lane_names = []
-            
-            for pattern in LANE_PATTERNS:
-                lanes = re.findall(pattern, diagram, re.IGNORECASE)
-                if lanes:
-                    logger.debug(f"Pattern '{pattern}' found {len(lanes)} lanes")
-                    break
-            else:
-                logger.debug("No lanes found")
-                return []
-            
-            for lane in lanes:
-                name = lane.strip().lower()
-                if self.is_valid_name(name):
-                    lane_names.append(name)
-                    
-            return lane_names
-        except Exception as e:
-            logger.exception(f"Failed to extract lanes: {e}")
-            raise
-    
-    # Extract activity names from the BPMN diagram using regex patterns
-    def extract_activities(self, diagram: str) -> List[str]:
-        try:
-            activity_names = []
-            
-            for pattern in ACTIVITY_PATTERNS:
-                activities = re.findall(pattern, diagram, re.IGNORECASE)
-                for activity in activities:
-                    name = activity.strip().lower()
-                    if self.is_valid_name(name) and name not in activity_names:
-                        activity_names.append(name)
-            
-            return activity_names
-        except Exception as e:
-            logger.exception(f"Failed to extract activities: {e}")
-            raise
+                    # Clean the text
+                    cleaned_text = re.sub(r'[<>-]', ' ', cleaned_text)
+                    cleaned_text = re.sub(r'\s+', ' ', cleaned_text).strip()
+                    semantic_terms.append(cleaned_text)
 
-    # Check if a name is valid for extraction (not empty, not just digits, meaningful length)
-    def is_valid_name(self, name: str) -> bool:
-        """Check if a name is valid for keyword extraction."""
-        try:
-            return (bool(name) and len(name) > 1 and not name.isdigit() and
-                    not name in ['http', 'www', 'org', 'berlin', 'hu'])
+            return semantic_terms
         except Exception as e:
-            logger.exception(f"Failed to check if name is valid: {e}")
+            logger.exception(f"[BPMN EXTRACTOR] Failed to filter technical terms: {e}")
+            raise
+    
+    # Filter out structural terms that are not relevant for search
+    # These are terms that describe the structure of the BPMN diagram rather than its business logic
+    def filter_structural_terms(self, keywords: List[str]) -> List[str]:
+        try:
+            optimized_keywords = []
+            
+            # BPMN-specific structural terms to exclude
+            bpmn_structural_terms = ['start', 'end', 'gateway', 'sequence', 'flow',
+                                   'startevent', 'endevent', 'fork', 'merge',
+                                   'http', 'www', 'org', 'berlin', 'hu',
+                                   'op', 'woped', 'designer', 'version']
+            
+            for keyword in keywords:
+                if not any(term in keyword.lower() for term in bpmn_structural_terms):
+                    optimized_keywords.append(keyword)
+            
+            return optimized_keywords
+        except Exception as e:
+            logger.exception(f"[BPMN EXTRACTOR] Failed to filter structural terms: {e}")
             raise

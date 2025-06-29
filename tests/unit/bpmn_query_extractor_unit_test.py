@@ -33,48 +33,42 @@ class TestBpmnQueryExtractor:
     def test_get_diagram_type_returns_bpmn(self, bpmn_extractor):
         assert bpmn_extractor.get_diagram_type() == "BPMN"
     
-    # Test extract_semantic_terms method
-    @patch.object(BpmnQueryExtractor, 'extract_participants')
-    @patch.object(BpmnQueryExtractor, 'extract_lanes')
-    @patch.object(BpmnQueryExtractor, 'extract_activities')
-    def test_extract_semantic_terms_success(self, mock_activities, mock_lanes, mock_participants, bpmn_extractor):
-        mock_participants.return_value = ["bank customer"]
-        mock_lanes.return_value = ["risk management"]
-        mock_activities.return_value = ["approve loan"]
+    # Test extract_terms method
+    def test_extract_terms_success(self, bpmn_extractor):
+        bpmn_xml = """<?xml version="1.0"?>
+        <definitions>
+            <participant name="Bank Customer"/>
+            <task name="Review Application"/>
+            <userTask name="Approve Loan"/>
+        </definitions>"""
         
-        result = bpmn_extractor.extract_semantic_terms('<?xml version="1.0"?><definitions></definitions>')
+        result = bpmn_extractor.extract_terms(bpmn_xml)
         
-        # Participants and lanes are inserted at the beginning
+        assert "Bank Customer" in result
+        assert "Review Application" in result
+        assert "Approve Loan" in result
+    
+    # Test filter_technical_terms method
+    def test_filter_technical_terms_success(self, bpmn_extractor):
+        text_matches = ["Bank Customer", "task_123abc", "Review Application", "sequenceflow_xyz", "designer"]
+
+        result = bpmn_extractor.filter_technical_terms(text_matches)
+
         assert "bank customer" in result
-        assert "risk management" in result
-        assert "approve loan" in result
-    
-    # Test extract_participants method
-    @patch('app.infrastructure.preprocessing.BpmnQueryExtractor.re.findall')
-    def test_extract_participants_success(self, mock_findall, bpmn_extractor):
-        mock_findall.return_value = ["Bank Customer"]
-        
-        with patch.object(bpmn_extractor, 'is_valid_name', return_value=True):
-            result = bpmn_extractor.extract_participants('<participant name="Bank Customer"/>')
-        
-        assert "bank customer" in result
-    
-    # Test extract_lanes method
-    @patch('app.infrastructure.preprocessing.BpmnQueryExtractor.re.findall')
-    def test_extract_lanes_success(self, mock_findall, bpmn_extractor):
-        mock_findall.return_value = ["Risk Management"]
-        
-        with patch.object(bpmn_extractor, 'is_valid_name', return_value=True):
-            result = bpmn_extractor.extract_lanes('<lane name="Risk Management"/>')
-        
-        assert "risk management" in result
-    
-    # Test extract_activities method
-    @patch('app.infrastructure.preprocessing.BpmnQueryExtractor.re.findall')
-    def test_extract_activities_success(self, mock_findall, bpmn_extractor):
-        mock_findall.return_value = ["Review Application"]
-        
-        with patch.object(bpmn_extractor, 'is_valid_name', return_value=True):
-            result = bpmn_extractor.extract_activities('<task name="Review Application"/>')
-        
         assert "review application" in result
+        assert "designer" in result  # Tool terms are filtered in structural filter, not technical
+        assert "task_123abc" not in result  # Technical ID filtered
+        assert "sequenceflow_xyz" not in result  # SequenceFlow filtered
+    
+    # Test filter_structural_terms method
+    def test_filter_structural_terms_success(self, bpmn_extractor):
+        keywords = ["bank customer", "start", "end", "gateway", "review application", "sequence"]
+        
+        result = bpmn_extractor.filter_structural_terms(keywords)
+        
+        assert "bank customer" in result
+        assert "review application" in result
+        assert "start" not in result  # Structural term filtered
+        assert "end" not in result  # Structural term filtered
+        assert "gateway" not in result  # Structural term filtered
+        assert "sequence" not in result  # Structural term filtered

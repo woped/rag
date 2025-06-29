@@ -29,7 +29,7 @@ class TestLangchainClient:
     @pytest.fixture
     def langchain_client(self, mock_embeddings, mock_vectorstore, mock_collection, mock_client):
         with patch.dict(os.environ, {
-            "THRESHOLD": "2",
+            "THRESHOLD": "0.5",
             "RESULTS_COUNT": "5", 
             "EMBEDDING_MODEL": "test-model"
         }):
@@ -134,8 +134,8 @@ class TestLangchainClient:
         doc2.metadata = {"source": "test2"}
         
         mock_vectorstore.similarity_search_with_score.return_value = [
-            (doc1, 0.3),  # Below threshold
-            (doc2, 2.5)   # Above threshold
+            (doc1, 0.3),  # Below threshold (0.5)
+            (doc2, 0.7)   # Above threshold (0.5)
         ]
         
         results = langchain_client.search_docs("test query")
@@ -156,7 +156,7 @@ class TestLangchainClient:
         doc1.metadata = {"source": "test1"}
         
         mock_vectorstore.similarity_search_with_score.return_value = [
-            (doc1, 2.5) 
+            (doc1, 0.8)  # Above threshold (0.5)
         ]
         
         results = langchain_client.search_docs("test query")

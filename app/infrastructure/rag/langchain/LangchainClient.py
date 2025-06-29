@@ -23,7 +23,7 @@ class LangchainClient:
             self.persist_directory = persist_directory
             logger.info(f"[LangchainClient] initialised with Persist-directory: {self.persist_directory}")
 
-            self.threshold = int(os.environ.get("THRESHOLD"))
+            self.threshold = float(os.environ.get("THRESHOLD"))
             self.results_count = int(os.environ.get("RESULTS_COUNT"))
             embedding_model = os.environ.get("EMBEDDING_MODEL")
 

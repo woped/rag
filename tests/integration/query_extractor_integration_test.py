@@ -118,11 +118,11 @@ class TestQueryExtractionServiceIntegration:
     def test_keyword_optimization_filtering(self, query_extraction_service):
         # Create a realistic PNML diagram that includes both business and structural terms
         mock_diagram = '''<?xml version="1.0"?>
-        <pnml xmlns="http://www.pnml.org/version-2009/grammar/pnml">
+        <pnml>
             <net>
                 <place id="p1"><name><text>loan application</text></name></place>
                 <place id="p2"><name><text>start</text></name></place>
-                <transition id="t1"><name><text>gateway</text></name></transition>
+                <transition id="t1"><name><text>split</text></name></transition>
                 <transition id="t2"><name><text>end</text></name></transition>
             </net>
         </pnml>'''
@@ -133,9 +133,9 @@ class TestQueryExtractionServiceIntegration:
         # Assert: Business terms should be included
         assert "loan application" in extracted_query
         
-        # Assert: Structural terms should be excluded by the optimization
+        # Assert: Structural terms should be excluded by filter_structural_terms
         assert "start" not in extracted_query
-        assert "gateway" not in extracted_query
+        assert "split" not in extracted_query
         assert "end" not in extracted_query
     
     # Test that unknown diagram types return the original content as fallback

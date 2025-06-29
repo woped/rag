@@ -33,32 +33,43 @@ class TestPnmlQueryExtractor:
     def test_get_diagram_type_returns_pnml(self, pnml_extractor):
         assert pnml_extractor.get_diagram_type() == "PNML"
     
-    # Test extract_semantic_terms method
-    @patch('app.infrastructure.preprocessing.PnmlQueryExtractor.re.findall')
-    def test_extract_semantic_terms_success(self, mock_findall, pnml_extractor):
-        mock_findall.return_value = ["loan application received", "verify identity", "start", "123"]
+    # Test extract_terms method
+    def test_extract_terms_success(self, pnml_extractor):
+        pnml_xml = """<?xml version="1.0"?>
+        <pnml>
+            <net>
+                <place id="p1"><name><text>Loan Application</text></name></place>
+                <transition id="t1"><name><text>Verify Identity</text></name></transition>
+            </net>
+        </pnml>"""
         
-        with patch.object(pnml_extractor, 'filter_semantic_terms') as mock_filter:
-            mock_filter.return_value = ["loan application received", "verify identity"]
-            
-            result = pnml_extractor.extract_semantic_terms('<?xml version="1.0"?><pnml></pnml>')
+        result = pnml_extractor.extract_terms(pnml_xml)
         
-        assert "loan application received" in result
-        assert "verify identity" in result
-        assert "start" not in result  # Should be filtered out
-        assert "123" not in result    # Should be filtered out
+        assert "Loan Application" in result
+        assert "Verify Identity" in result
     
-    # Test filter_semantic_terms method
-    def test_filter_semantic_terms_success(self, pnml_extractor):
-        text_matches = ["loan application received", "verify identity", "start", "123"]
+    # Test filter_technical_terms method
+    def test_filter_technical_terms_success(self, pnml_extractor):
+        text_matches = ["Loan Application", "p1", "t2", "verify identity", "123", "noID"]
         
-        with patch.object(pnml_extractor, 'is_meaningful_text') as mock_meaningful:
-            with patch.object(pnml_extractor, 'is_process_relevant') as mock_relevant:
-                mock_meaningful.side_effect = [True, True, False, False]
-                mock_relevant.side_effect = [True, True]
-                
-                result = pnml_extractor.filter_semantic_terms(text_matches)
+        result = pnml_extractor.filter_technical_terms(text_matches)
         
-        assert len(result) == 2
-        assert "loan application received" in result
+        assert "loan application" in result
         assert "verify identity" in result
+        assert "p1" not in result  # Technical ID filtered
+        assert "t2" not in result  # Technical ID filtered
+        assert "123" not in result  # Number filtered
+        assert "noID" not in result  # Special case filtered
+    
+    # Test filter_structural_terms method
+    def test_filter_structural_terms_success(self, pnml_extractor):
+        keywords = ["loan application", "start", "end", "place", "transition", "verify identity"]
+        
+        result = pnml_extractor.filter_structural_terms(keywords)
+        
+        assert "loan application" in result
+        assert "verify identity" in result
+        assert "start" not in result  # Structural term filtered
+        assert "end" not in result  # Structural term filtered
+        assert "place" not in result  # Structural term filtered
+        assert "transition" not in result  # Structural term filtered
