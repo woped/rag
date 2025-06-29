@@ -161,7 +161,9 @@ def upload_pdf():
         file.save(tmp.name)
 
     try:
-        app_service.upload_and_index_pdf(tmp.name, os.path.basename(tmp.name).replace(".pdf", ""))
+        original_filename = file.filename or "unknown"
+        prefix = os.path.splitext(original_filename)[0]
+        app_service.upload_and_index_pdf(tmp.name, prefix)
         return jsonify({"status": "PDF processed and added"}), 201
     except ValueError as e:
         logger.warning(f"Bad request: {str(e)}")
