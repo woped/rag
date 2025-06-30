@@ -1,7 +1,6 @@
 # rag-woped-integration
 Integration of Retrieval Augmented Generation for WoPeD.
 
-
 =======
 # Table of Contents
 # Inhaltsverzeichnis
