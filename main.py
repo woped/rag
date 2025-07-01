@@ -7,7 +7,7 @@ from flask import Flask
 from dotenv import load_dotenv
 
 # Load configuration
-load_dotenv("config.env")
+load_dotenv("app/config/config.env")
 
 # Import service configuration
 from app.config.ServiceConfig import ServiceConfig

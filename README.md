@@ -61,7 +61,7 @@ python main.py
 `docker run -p 5000:5000 rag-api` or `podman run -p 5000:5000 rag-api`
 
 5. **Run with Logging**<br>
-The default logging is set to `warning` and will be active automatically when starting the application. The default can be changed by setting the `LOG_LEVEL` environment variable in `config.env`.<br>
+The default logging is set to `warning` and will be active automatically when starting the application. The default can be changed by setting the `LOG_LEVEL` environment variable in `app/config/config.env`.<br>
 
    **Flask**<br>
    `python main.py --loglevel <level>`<br>
@@ -125,11 +125,11 @@ Infrastructure adapters handle **technical implementation** and **detailed error
 3. **Technical Filtering**: Removes technical IDs (`task_12j0pib`, `p1`, `t3`, etc.)
 4. **Structural Filtering**: Removes tool/system terms (`woped`, `designer`, `start`, `end`, etc.)
 
-**Configuration**: Set `ENABLE_DIAGRAM_PREPROCESSING=true/false` in `config.env`
+**Configuration**: Set `ENABLE_DIAGRAM_PREPROCESSING=true/false` in `app/config/config.env`
 
 ### ⚙️ Configuration Management
 
-The system is highly configurable through environment variables in `config.env`:
+The system is highly configurable through environment variables in `app/config/config.env`:
 - **Database settings**: ChromaDB persist directory configuration
 - **ChromaDB settings**: Telemetry, connection parameters
 - **Document processing**: Chunk size, overlap, PDF directory
@@ -138,7 +138,7 @@ The system is highly configurable through environment variables in `config.env`:
 - **Server configuration**: Host, port settings
 - **Logging**: Log level configuration
 
-See `config.env` for all available configuration options.
+See `app/config/config.env` for all available configuration options.
 
 ### 🧪 Comprehensive Test Coverage
 

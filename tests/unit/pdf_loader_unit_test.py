@@ -9,7 +9,7 @@ class TestPDFLoader:
     
     @pytest.fixture(autouse=True)
     def setup_env(self):
-        load_dotenv("config.env")
+        load_dotenv("app/config/config.env")
     
     @pytest.fixture
     def pdf_loader(self):

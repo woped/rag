@@ -6,7 +6,7 @@ WORKDIR /app
 
 # Copy dependency file and install packages
 COPY requirements.txt .
-COPY config.env .
+COPY app/config/config.env app/config/
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy all other project files

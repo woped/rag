@@ -11,6 +11,10 @@ import shutil
 import logging
 from unittest.mock import patch, MagicMock
 from app.core.dtos.DocumentDTO import DocumentDTO
+from app.core.services.DatabaseService import DatabaseService
+from app.core.services.PDFService import PDFService
+from app.core.ApplicationService import ApplicationService
+from app.infrastructure.db.PDFLoader import PDFLoader
 
 logger = logging.getLogger(__name__)
 
@@ -72,12 +76,6 @@ class TestPDFWorkflowIntegration:
                         return mock_loader_instance
                     
                     mock_pypdf_loader.side_effect = create_mock_loader
-                    
-                    # Create mix of REAL and MOCK services for focused testing
-                    from app.core.services.DatabaseService import DatabaseService
-                    from app.core.services.PDFService import PDFService
-                    from app.core.ApplicationService import ApplicationService
-                    from app.infrastructure.db.PDFLoader import PDFLoader
                     
                     # Create REAL service instances for PDF processing
                     pdf_loader = PDFLoader()  # REAL PDF loader
