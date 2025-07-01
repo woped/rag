@@ -145,7 +145,7 @@ class TestRAGWorkflowIntegrationMocked:
                 }
             ]
             
-            add_response = client.post('/rag',
+            add_response = client.post('/rag/add',
                                        json=sample_docs,
                                        content_type='application/json')
             assert add_response.status_code == 201 

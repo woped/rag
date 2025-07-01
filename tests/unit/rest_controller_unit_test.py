@@ -88,7 +88,6 @@ class TestRESTController:
     # Test successful prompt enrichment
     @patch('app.presentation.controller.RESTController.app_service')
     def test_enrich_prompt_success(self, mock_app_service, client):
-        """Test successful prompt enrichment"""
         mock_app_service.process_rag_request.return_value = "Enriched prompt with context"
         
         response = client.post('/rag/enrich', 
@@ -119,7 +118,7 @@ class TestRESTController:
             {'text': 'Test content 2', 'id': 'test2'}
         ]
         
-        response = client.post('/rag', json=docs)
+        response = client.post('/rag/add', json=docs)
         
         assert response.status_code == 201
         data = response.get_json()
@@ -137,7 +136,7 @@ class TestRESTController:
     # Test document addition with invalid format (not a list)
     @patch('app.presentation.controller.RESTController.app_service')
     def test_add_docs_invalid_format(self, mock_app_service, client):
-        response = client.post('/rag', json={'not': 'a list'})
+        response = client.post('/rag/add', json={'not': 'a list'})
         
         assert response.status_code == 400
         data = response.get_json()
@@ -149,7 +148,7 @@ class TestRESTController:
     def test_add_docs_missing_text(self, mock_app_service, client):
         docs = [{'id': 'test1'}]  # Missing text
         
-        response = client.post('/rag', json=docs)
+        response = client.post('/rag/add', json=docs)
         
         assert response.status_code == 400
         data = response.get_json()

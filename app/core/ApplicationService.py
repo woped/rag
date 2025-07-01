@@ -72,6 +72,7 @@ class ApplicationService:
             
         except Exception as e:
             logger.exception(f"[RAG PIPELINE] Pipeline failed: {e}")
+            raise
 
     # Search documents using RAG service
     def search_docs(self, query):

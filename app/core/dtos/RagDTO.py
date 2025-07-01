@@ -1,5 +1,6 @@
 from app.core.dtos.DocumentDTO import DocumentDTO
-from typing_extensions import List, TypedDict
+from typing import List
+from typing import TypedDict
 
 class State(TypedDict):
     """

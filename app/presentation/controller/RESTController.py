@@ -1,8 +1,10 @@
-from flask import Blueprint, request, jsonify
-from app.core.dtos.DocumentDTO import DocumentDTO
-from app.core.ApplicationService import ApplicationService
-import os
 import logging
+import os
+
+from flask import Blueprint, jsonify, request
+
+from app.core.ApplicationService import ApplicationService
+from app.core.dtos.DocumentDTO import DocumentDTO
 
 rest_bp = Blueprint("rest", __name__)
 logger = logging.getLogger(__name__)
@@ -17,26 +19,22 @@ def enrich_prompt():
     data = request.get_json()
     prompt = data.get("prompt", "")
     diagram = data.get("diagram", "")
-    
+
     try:
         enriched_prompt = app_service.process_rag_request(prompt, diagram)
         logger.info(f"Enriched prompt: {enriched_prompt}")
         return jsonify({"enriched_prompt": enriched_prompt}), 200
-        
+
     except ValueError as e:
         logger.warning(f"Bad request: {str(e)}")
         return jsonify({"error": str(e)}), 400
     except Exception as e:
         logger.error(f"RAG failed: {str(e)}")
         return jsonify({"error": "Internal server error"}), 500
-    
+
 # ➤ Add documents (POST)
-@rest_bp.route("/rag", methods=["POST"])
+@rest_bp.route("/rag/add", methods=["POST"])
 def add_docs():
-    """
-    Adds a list of documents to the database.
-    Expects a JSON list of documents.
-    """
     try:
         data = request.get_json()
         if not isinstance(data, list):
@@ -47,7 +45,9 @@ def add_docs():
                 return jsonify({"error": "Missing text in document"}), 400
 
         document_dtos = [
-            DocumentDTO(id=doc.get("id"), text=doc["text"], metadata=doc.get("metadata"))
+            DocumentDTO(
+                id=doc.get("id"), text=doc["text"], metadata=doc.get("metadata")
+            )
             for doc in data
         ]
         app_service.add_docs(document_dtos)
@@ -57,6 +57,30 @@ def add_docs():
         return jsonify({"error": str(e)}), 400
     except Exception as e:
         logger.error(f"Add docs failed: {str(e)}")
+        return jsonify({"error": "Internal server error"}), 500
+
+# ➤ Upload PDF and add to database (POST)
+@rest_bp.route("/rag/upload_pdf", methods=["POST"])
+def upload_pdf():
+    file = request.files.get("file")
+    if not file:
+        return jsonify({"error": "No file uploaded"}), 400
+
+    import tempfile
+
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+        file.save(tmp.name)
+
+    try:
+        original_filename = file.filename or "unknown"
+        prefix = os.path.splitext(original_filename)[0]
+        app_service.upload_and_index_pdf(tmp.name, prefix)
+        return jsonify({"status": "PDF processed and added"}), 201
+    except ValueError as e:
+        logger.warning(f"Bad request: {str(e)}")
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        logger.error(f"Upload PDF failed: {str(e)}")
         return jsonify({"error": "Internal server error"}), 500
 
 # ➤ Update a document by ID (PUT)
@@ -94,7 +118,7 @@ def get_doc_by_id(doc_id):
         return jsonify({"error": "Internal server error"}), 500
 
 # ➤ Similarity search (GET)
-@rest_bp.route('/rag/search', methods=['GET'])
+@rest_bp.route("/rag/search", methods=["GET"])
 def search_docs():
     query = request.args.get("query")
     if not query:
@@ -103,17 +127,19 @@ def search_docs():
     try:
         logger.info(f"Search request - query: '{query}' (using environment config)")
         results = app_service.search_docs(query)
-        
+
         logger.info(f"Search completed - found {len(results)} results")
         for i, (dto, distance) in enumerate(results):
-            logger.info(f"Search result {i+1}: distance={distance:.4f}, id={dto.id}, text={dto.text[:100]}...")
-        
+            logger.info(
+                f"Search result {i+1}: distance={distance:.4f}, id={dto.id}, text={dto.text[:100]}..."
+            )
+
         response = [
             {
                 "id": dto.id,
                 "text": dto.text,
                 "metadata": dto.metadata,
-                "distance": distance
+                "distance": distance,
             }
             for dto, distance in results
         ]
@@ -124,7 +150,6 @@ def search_docs():
     except Exception as e:
         logger.error(f"Error in search: {str(e)}")
         return jsonify({"error": "Internal server error"}), 500
-
 
 # ➤ Delete a document by ID (DELETE)
 @rest_bp.route("/rag/<doc_id>", methods=["DELETE"])
@@ -149,29 +174,6 @@ def clear_collection():
         logger.error(f"Clear failed: {str(e)}")
         return jsonify({"error": "Internal server error"}), 500
 
-# ➤ Upload PDF and add to database (POST)
-@rest_bp.route("/rag/upload_pdf", methods=["POST"])
-def upload_pdf():
-    file = request.files.get("file")
-    if not file:
-        return jsonify({"error": "No file uploaded"}), 400
-
-    import tempfile
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
-        file.save(tmp.name)
-
-    try:
-        original_filename = file.filename or "unknown"
-        prefix = os.path.splitext(original_filename)[0]
-        app_service.upload_and_index_pdf(tmp.name, prefix)
-        return jsonify({"status": "PDF processed and added"}), 201
-    except ValueError as e:
-        logger.warning(f"Bad request: {str(e)}")
-        return jsonify({"error": str(e)}), 400
-    except Exception as e:
-        logger.error(f"Upload PDF failed: {str(e)}")
-        return jsonify({"error": "Internal server error"}), 500
-
 # ➤ Debug: Dump all document IDs (GET)
 @rest_bp.route("/rag/debug_dump", methods=["GET"])
 def debug_dump():
@@ -183,4 +185,3 @@ def debug_dump():
     except Exception as e:
         logger.error(f"Debug dump failed: {str(e)}")
         return jsonify({"error": "Internal server error"}), 500
-
